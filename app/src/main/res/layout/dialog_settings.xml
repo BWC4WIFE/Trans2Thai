@@ -9,13 +9,11 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="VAD Sensitivity (ms)" />
-
     <SeekBar
         android:id="@+id/vadSensitivity"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:max="2000" />
-
     <TextView
         android:id="@+id/vadValue"
         android:layout_width="wrap_content"
@@ -27,7 +25,6 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:text="Model" />
-
     <Spinner
         android:id="@+id/modelSpinnerSettings"
         android:layout_width="match_parent"
@@ -38,7 +35,6 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:text="Source Language" />
-
     <Spinner
         android:id="@+id/sourceLanguageSpinner"
         android:layout_width="match_parent"
@@ -49,7 +45,6 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:text="Target Language" />
-
     <Spinner
         android:id="@+id/targetLanguageSpinner"
         android:layout_width="match_parent"
@@ -60,25 +55,26 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="API Version" />
-
+        android:text="API Version"
+        android:visibility="gone"/>
     <Spinner
         android:id="@+id/apiVersionSpinner"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:entries="@array/api_versions" />
+        android:visibility="gone" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:text="API Key" />
-
     <Spinner
         android:id="@+id/apiKeySpinner"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp" />
 
+    <!-- THIS IS THE NEW SWITCH FOR THE PROMPT -->
     <com.google.android.material.switchmaterial.SwitchMaterial
         android:id="@+id/thaiPromptSwitch"
         android:layout_width="match_parent"
