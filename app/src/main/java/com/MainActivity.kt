@@ -1,4 +1,5 @@
 package com.Trans2Thai
+package com.Trans2Thai
 
 import android.Manifest
 import android.content.Context
@@ -37,7 +38,7 @@ class MainActivity : AppCompatActivity() {
     // --- State Management ---
     @Volatile private var isListening = false
     @Volatile private var isProcessing = false
-    // NOTE: isTypingMode functionality is removed as the switch is not in the layout
+    // NOTE: isTypingMode functionality is commented out as its views are not in the layout.
     // @Volatile private var isTypingMode = false
     @Volatile private var isTtsReady = false
     private val audioBuffer = ByteArrayOutputStream()
@@ -267,46 +268,41 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
             Toast.makeText(this, "Source: Thai, Target: English", Toast.LENGTH_SHORT).show()
         }
         
-        // FIX: Changed binding.mainMicButton to binding.micBtn to match activity_main.xml
+        // FIX: Corrected ID to match activity_main.xml
         binding.micBtn.setOnClickListener { handleMasterButton() }
         
-        // NOTE: The following listeners are removed as the views are not in the layout.
-        // binding.sendTextBtn.setOnClickListener { handleSendText() }
-        // binding.settingsButton.setOnClickListener { showSettingsDialog() }
-        // binding.typingModeSwitch.setOnCheckedChangeListener { _, isChecked -> ... }
-
+        // NOTE: Functionality for other buttons (send, settings) is removed
+        // because they are not in the current activity_main.xml layout.
+        
         updateUI()
     }
     
-    // NOTE: This function is removed as its TextViews are not in the layout.
-    // private fun updateTranscription(language: String, transcription: String) { ... }
-
     private fun updateUI() {
         val hasPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         
-        // NOTE: Logic for typing mode is removed. The mic button is always visible.
+        // The microphone button is always visible and enabled when not processing.
         binding.micBtn.visibility = View.VISIBLE
         binding.micBtn.isEnabled = hasPermission && !isProcessing
 
+        // Show a spinner when processing.
         binding.processingSpinner.visibility = if (isProcessing) View.VISIBLE else View.GONE
         binding.dualLanguagePanel.alpha = if (isProcessing) 0.5f else 1.0f
 
+        // Update button appearance based on state.
         if (isListening) {
-            // NOTE: Using text for the button state, not changing icon resource
-            binding.micBtn.text = "Stop"
+            binding.micBtn.text = "Listening..."
+            // It's better to use a ColorStateList for button colors, but for a direct fix:
             binding.micBtn.setBackgroundColor(ContextCompat.getColor(this, R.color.listening_color))
         } else {
             binding.micBtn.text = "Connect"
             binding.micBtn.setBackgroundColor(ContextCompat.getColor(this, com.google.android.material.R.color.design_default_color_primary))
         }
-        
-        // NOTE: Logic for disabling settings button is removed as it's not in the layout.
-        // binding.settingsButton.isEnabled = !isListening && !isProcessing
     }
 
     private fun isNetworkAvailable(): Boolean {
         val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        return connectivityManager.activeNetworkInfo?.isConnectedOrConnecting == true
+        val activeNetworkInfo = connectivityManager.activeNetworkInfo
+        return activeNetworkInfo?.isConnectedOrConnecting == true
     }
     
     private fun updateStatus(message: String) {
@@ -324,6 +320,8 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
         val prefs = getSharedPreferences("Trans2ThaiPrefs", MODE_PRIVATE)
         val currentApiKey = apiKeys.firstOrNull { it.value == prefs.getString("api_key", null) } ?: apiKeys.firstOrNull()
         val infoText = "Model: $selectedModel | Key: ${currentApiKey?.displayName ?: "N/A"}"
+        
+        // FIX: Corrected ID to match activity_main.xml
         binding.configDisplay.text = infoText
         Log.d(TAG, "updateDisplayInfo: $infoText")
     }
@@ -389,9 +387,6 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
         return getSharedPreferences("Trans2ThaiPrefs", MODE_PRIVATE).getInt("vad_sensitivity_ms", 1200)
     }
 
-    // NOTE: This function is removed as it relies on views not in the layout
-    // private fun handleSendText() { ... }
-
     // --- API Communication ---
     private fun sendApiRequest(textInput: String?, audioData: ByteArray?) {
         val apiKey = selectedApiKeyInfo?.value
@@ -451,19 +446,18 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
         result.onSuccess { response ->
             val content = response.candidates?.firstOrNull()?.content ?: run {
                 showError("Received an empty response from the API.")
+                isProcessing = false
+                updateUI()
                 return@onSuccess
             }
 
             val textPart = content.parts.find { it.text != null }?.text
             if (textPart != null) {
                 translationAdapter.addOrUpdateTranslation(textPart.trim(), false)
-                // NOTE: TTS in typing mode is removed
-                // if (isTypingMode && isTtsReady) { ttsManager.speak(textPart) }
             } else {
                 translationAdapter.addOrUpdateTranslation("(No text translation received)", false)
             }
             
-            // NOTE: Only play audio if not in typing mode (which is always the case now)
             val audioPart = content.parts.find { it.inlineData != null }?.inlineData
             if (audioPart != null && audioPart.mimeType.startsWith("audio/")) {
                 audioPlayer.playAudio(audioPart.data)
@@ -473,7 +467,6 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
             Log.e(TAG, "API Error", error)
             showError("Translation failed: ${error.message}")
             translationAdapter.addOrUpdateTranslation("(Translation failed)", false)
-            updateStatus("Error")
         }
 
         isProcessing = false
@@ -493,6 +486,7 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
     }
 
     // --- Settings and Language Options ---
+    // NOTE: This function is preserved but will not be called unless you add a settings button back.
     private fun showSettingsDialog() {
         val models = resources.getStringArray(R.array.models).toList()
         val languages = getLanguageOptions()
