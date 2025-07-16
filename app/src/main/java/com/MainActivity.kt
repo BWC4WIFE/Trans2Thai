@@ -231,6 +231,12 @@ binding.dualLanguagePanel.alpha = if (isProcessing) 0.5f else 1.0f // Optional: 
         binding.settingsButton.isEnabled = !isListening && !isProcessing
     }
 
+private fun isNetworkAvailable(): Boolean {
+    val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val activeNetwork = connectivityManager.activeNetworkInfo
+    return activeNetwork?.isConnectedOrConnecting == true
+}
+    
     private fun updateStatus(message: String) {
         binding.statusText.text = "Status: $message"
         Log.i(TAG, "Status Updated: $message")
