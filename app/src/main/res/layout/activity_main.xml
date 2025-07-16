@@ -6,21 +6,46 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
+    <!-- Settings Button -->
+    <ImageButton
+        android:id="@+id/settingsButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Settings"
+        android:src="@android:drawable/ic_menu_preferences"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Typing Mode Switch -->
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/typingModeSwitch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="16dp"
+        android:text="Typing Mode"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Configuration Display Text -->
     <TextView
         android:id="@+id/configDisplay"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="8dp"
         android:layout_marginEnd="16dp"
-        android:text="Using Model: N/A | Version: N/A | Key: N/A"
+        android:text="Model: N/A | Key: N/A"
         android:textAlignment="center"
-        android.textSize="16sp"
-        android:textStyle="bold"
+        android:textSize="12sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@+id/typingModeSwitch" />
 
+    <!-- Status Text -->
     <TextView
         android:id="@+id/statusText"
         android:layout_width="0dp"
@@ -34,6 +59,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/configDisplay" />
 
+    <!-- Transcript Log Panel -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/dualLanguagePanel"
         android:layout_width="0dp"
@@ -44,7 +70,7 @@
         android:layout_marginBottom="8dp"
         app:cardCornerRadius="12dp"
         app:cardElevation="4dp"
-        app:layout_constraintBottom_toTopOf="@+id/interimDisplay"
+        app:layout_constraintBottom_toTopOf="@+id/textInputContainer"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/statusText">
@@ -54,9 +80,9 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:padding="8dp" />
-
     </com.google.android.material.card.MaterialCardView>
 
+    <!-- Processing Spinner -->
     <ProgressBar
         android:id="@+id/processingSpinner"
         style="?android:attr/progressBarStyle"
@@ -68,54 +94,46 @@
         app:layout_constraintStart_toStartOf="@+id/dualLanguagePanel"
         app:layout_constraintTop_toTopOf="@+id/dualLanguagePanel" />
 
-    <TextView
-        android:id="@+id/interimDisplay"
+    <!-- Text Input Area -->
+    <LinearLayout
+        android:id="@+id/textInputContainer"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="8dp"
-        android:text="..."
-        android:textAlignment="center"
+        android:orientation="horizontal"
         android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@+id/micBtn"
+        tools:visibility="visible"
+        app:layout_constraintBottom_toTopOf="@+id/mainMicButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <EditText
+            android:id="@+id/textInputEdittext"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="Enter text to translate"
+            android:inputType="text" />
+
+        <Button
+            android:id="@+id/sendTextBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Send" />
+    </LinearLayout>
+
+    <!-- Microphone Button -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/mainMicButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:contentDescription="Microphone Button"
+        android:src="@drawable/ic_mic"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/englishButton"
-        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginBottom="16dp"
-        android:text="English"
-        app:cornerRadius="18dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/micBtn"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:text="Connect"
-        app:cornerRadius="18dp"
-        app:icon="@drawable/ic_mic"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/thaiButton"
-        app:layout_constraintStart_toEndOf="@+id/englishButton" />
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/thaiButton"
-        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp"
-        android:text="Thai"
-        app:cornerRadius="18dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
