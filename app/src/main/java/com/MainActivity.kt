@@ -21,6 +21,7 @@ import com.Trans2Thai.output.TextToSpeechManager
 import kotlinx.coroutines.*
 import java.io.ByteArrayOutputStream
 import java.util.Locale
+import android.net.ConnectivityManager
 
 class MainActivity : AppCompatActivity() {
 
