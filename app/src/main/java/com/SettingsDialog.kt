@@ -122,6 +122,9 @@ class SettingsDialog(
             }
         }
 
+	val useThaiPrompt = prefs.getBoolean("use_thai_prompt", false)
+        binding.thaiPromptSwitch.isChecked = useThaiPrompt
+
         binding.saveSettingsBtn.setOnClickListener {
             prefs.edit().apply {
                 putInt("vad_sensitivity_ms", binding.vadSensitivity.progress)
@@ -137,6 +140,8 @@ class SettingsDialog(
                     val selectedApiKey = apiKeysList[binding.apiKeySpinner.selectedItemPosition]
                     putString("api_key", selectedApiKey.value)
                 }
+
+		putBoolean("use_thai_prompt", binding.thaiPromptSwitch.isChecked)
                 
                 apply()
             }
