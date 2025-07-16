@@ -195,41 +195,43 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateUI() {
-        val hasPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        if (isTypingMode) {
-            binding.mainMicButton.visibility = View.GONE
-            binding.textInputContainer.visibility = View.VISIBLE
-            binding.sendTextBtn.isEnabled = !isProcessing
-        } else {
-            binding.mainMicButton.visibility = View.VISIBLE
-            binding.textInputContainer.visibility = View.GONE
-            binding.mainMicButton.isEnabled = hasPermission && !isProcessing
-
-            // FIX: An ImageButton does not have a 'text' property.
- 
-            if (isListening) {
-  
-    binding.mainMicButton.setColorFilter(ContextCompat.getColor(this, R.color.listening_color), android.graphics.PorterDuff.Mode.SRC_IN)
-   
-    // binding.mainMicButton.startAnimation(pulseAnimation)
-} else {
-    binding.mainMicButton.clearColorFilter()
-    // binding.mainMicButton.clearAnimation()
-}
-            if (isProcessing) {
-                 binding.mainMicButton.isEnabled = false // Visually show it's busy
-            } 
-            binding.processingSpinner.visibility = if (isProcessing) View.VISIBLE else View.GONE
-binding.dualLanguagePanel.alpha = if (isProcessing) 0.5f else 1.0f // Optional: make the panel semi-transparent
-            else if (isListening) {
-                // binding.mainMicButton.setImageResource(R.drawable.ic_stop)
-            } else {
-                // binding.mainMicButton.setImageResource(R.drawable.ic_microphone)
-            }
-        }
-        binding.settingsButton.isEnabled = !isListening && !isProcessing
+private fun updateUI() {
+    val hasPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+    
+    // Show/hide the typing interface vs. the microphone button
+    if (isTypingMode) {
+        binding.mainMicButton.visibility = View.GONE
+        binding.textInputContainer.visibility = View.VISIBLE
+        binding.sendTextBtn.isEnabled = !isProcessing
+    } else {
+        binding.mainMicButton.visibility = View.VISIBLE
+        binding.textInputContainer.visibility = View.GONE
+        binding.mainMicButton.isEnabled = hasPermission && !isProcessing
     }
+
+    // Show a spinner and dim the panel when processing a translation
+    binding.processingSpinner.visibility = if (isProcessing) View.VISIBLE else View.GONE
+    binding.dualLanguagePanel.alpha = if (isProcessing) 0.5f else 1.0f
+
+    // Give visual feedback when the microphone is active
+    if (isListening) {
+        binding.mainMicButton.setImageResource(R.drawable.ic_stop) // Change icon to a stop square
+        // Apply the color tint
+        binding.mainMicButton.setColorFilter(ContextCompat.getColor(this, R.color.listening_color), android.graphics.PorterDuff.Mode.SRC_IN)
+        
+        // Optional: Start a pulse animation
+        // val pulseAnimation = AnimationUtils.loadAnimation(this, R.anim.pulse)
+        // binding.mainMicButton.startAnimation(pulseAnimation)
+
+    } else {
+        binding.mainMicButton.setImageResource(R.drawable.ic_mic) // Change icon back to microphone
+        binding.mainMicButton.clearColorFilter() // Remove the color tint
+        binding.mainMicButton.clearAnimation() // Stop the animation
+    }
+    
+    // Disable settings button while listening or processing
+    binding.settingsButton.isEnabled = !isListening && !isProcessing
+}
 
 private fun isNetworkAvailable(): Boolean {
     val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
