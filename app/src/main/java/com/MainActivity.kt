@@ -414,7 +414,7 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
             )
 
             // THIS IS THE FIX: Using apiKey!! to assert it's not null
-            val result = geminiApiClient.generateContent(this@MainActivity, apiKey!!, selectedModel, request)
+            val result = geminiApiClient.generateContent(this@MainActivity, apiKey!!, selectedModel!!, request)
             handleApiResponse(result)
         }
     }
