@@ -25,4 +25,13 @@
     <item>gemini-2.5-flash-lite-preview-06-17</item>
     <item>gemini-2.0-flash-lite</item>
 </string-array>
+	<string-array name="language">
+	 <item>LanguageOption("English", Locale.ENGLISH),   </item>
+            <item>LanguageOption("Thai", Locale("th", "TH")),  </item>
+            <item>LanguageOption("Spanish", Locale("es", "ES"))</item>
+            <item>LanguageOption("French", Locale.FRENCH),     </item>
+            <item>LanguageOption("German", Locale.GERMAN),     </item>
+            <item>LanguageOption("Japanese", Locale.JAPANESE), </item>
+            <item>LanguageOption("Korean", Locale.KOREAN)      </item>
+	</string-array>
 </resources>
