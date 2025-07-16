@@ -19,10 +19,18 @@ class TranslationAdapter : RecyclerView.Adapter<TranslationAdapter.TranslationVi
     }
 
     override fun onBindViewHolder(holder: TranslationViewHolder, position: Int) {
-        val (text, isUser) = translations[position]
-        holder.binding.translationText.text = text
-        holder.binding.speakerLabel.text = if (isUser) "You said:" else "Translation:"
+    val (text, isUser) = translations[position]
+    holder.binding.translationText.text = text
+    if (isUser) {
+        holder.binding.speakerLabel.text = "You said:"
+        // Assuming you have a color resource named 'user_message_background'
+        holder.binding.translationText.setBackgroundResource(R.drawable.user_chat_bubble)
+    } else {
+        holder.binding.speakerLabel.text = "Translation:"
+        // Assuming you have a color resource named 'translation_message_background'
+        holder.binding.translationText.setBackgroundResource(R.drawable.translation_chat_bubble)
     }
+}
 
     override fun getItemCount() = translations.size
 
