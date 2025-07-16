@@ -1,3 +1,4 @@
+// app/src/main/java/com/Trans2Thai/SettingsDialog.kt
 package com.Trans2Thai
 
 import android.app.Dialog
@@ -17,17 +18,22 @@ class SettingsDialog(
     context: Context,
     private val prefs: SharedPreferences,
     private val models: List<String>,
-    private val languages: List<LanguageOption> // NEW: Receive language list
+    // FIX: Imported MainActivity.LanguageOption
+    private val languages: List<MainActivity.LanguageOption>
 ) : Dialog(context) {
 
     private lateinit var binding: DialogSettingsBinding
-    private var apiKeys: List<ApiKeyInfo> = emptyList()
-    private var selectedApiKeyInfo: ApiKeyInfo? = null
-	
+    private var apiKeysList: List<ApiKeyInfo> = emptyList()
     private var selectedModel: String = ""
-    // NEW: Language selection state
-    private var selectedSourceLang: LanguageOption? = null
-    private var selectedTargetLang: LanguageOption? = null
+    // FIX: Added missing member variable declaration
+    private var selectedApiKeyInfo: ApiKeyInfo? = null
+    
+    private var selectedSourceLang: MainActivity.LanguageOption? = null
+    private var selectedTargetLang: MainActivity.LanguageOption? = null
+    
+    companion object {
+        private const val TAG = "SettingsDialog"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,7 +48,6 @@ class SettingsDialog(
         val currentModel = prefs.getString("selected_model", models.firstOrNull())
         selectedModel = models.firstOrNull { it == currentModel } ?: models.first()
 
-        // NEW: Load current languages
         val sourceLangTag = prefs.getString("source_language", Locale.ENGLISH.toLanguageTag())
         val targetLangTag = prefs.getString("target_language", Locale("th", "TH").toLanguageTag())
         selectedSourceLang = languages.find { it.locale.toLanguageTag() == sourceLangTag } ?: languages.first()
@@ -94,17 +99,17 @@ class SettingsDialog(
 		
 		val languageAdapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, languages)
 		
-		 // Source Language
+	
         binding.sourceLanguageSpinner.adapter = languageAdapter
         val sourcePos = languages.indexOf(selectedSourceLang)
         if (sourcePos != -1) binding.sourceLanguageSpinner.setSelection(sourcePos)
         
-        // Target Language
         binding.targetLanguageSpinner.adapter = languageAdapter
         val targetPos = languages.indexOf(selectedTargetLang)
         if (targetPos != -1) binding.targetLanguageSpinner.setSelection(targetPos)
 
         // Hide API Version spinner as it's not needed for the standard v1beta endpoint
+        // NOTE: This line will fail if the view ID is not added to the TextView in dialog_settings.xml
         binding.apiVersionSpinner.visibility = View.GONE
         binding.apiVersionLabel.visibility = View.GONE
 
@@ -122,7 +127,6 @@ class SettingsDialog(
                 putInt("vad_sensitivity_ms", binding.vadSensitivity.progress)
                 putString("selected_model", models[binding.modelSpinnerSettings.selectedItemPosition])
                 
-                // NEW: Save selected languages using their BCP 47 language tag
                 val sourceLang = languages[binding.sourceLanguageSpinner.selectedItemPosition]
                 putString("source_language", sourceLang.locale.toLanguageTag())
                 
