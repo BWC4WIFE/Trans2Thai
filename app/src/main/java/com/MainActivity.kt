@@ -453,17 +453,15 @@ private fun isNetworkAvailable(): Boolean {
         override fun toString(): String = displayName
     }
 
-    private fun getLanguageOptions(): List<LanguageOption> {
-        return listOf(
-            LanguageOption("English", Locale.ENGLISH),
-            LanguageOption("Thai", Locale("th", "TH")),
-            LanguageOption("Spanish", Locale("es", "ES")),
-            LanguageOption("French", Locale.FRENCH),
-            LanguageOption("German", Locale.GERMAN),
-            LanguageOption("Japanese", Locale.JAPANESE),
-            LanguageOption("Korean", Locale.KOREAN)
-        )
+   private fun getLanguageOptions(): List<LanguageOption> {
+    val displayNames = resources.getStringArray(R.array.language_display_names)
+    val languageTags = resources.getStringArray(R.array.language_tags)
+
+    // Combine the two arrays into a list of LanguageOption objects
+    return displayNames.zip(languageTags).map { (name, tag) ->
+        LanguageOption(name, Locale.forLanguageTag(tag))
     }
+}
 
     private fun updateTtsLanguage() {
         if (isTtsReady) {
