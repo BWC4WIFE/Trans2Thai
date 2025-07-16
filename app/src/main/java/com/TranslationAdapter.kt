@@ -17,10 +17,13 @@ class TranslationAdapter : RecyclerView.Adapter<TranslationAdapter.TranslationVi
         return TranslationViewHolder(binding)
     }
 
-    override fun onBindViewHolder(holder: TranslationViewHolder, position: Int) {
-        val (text, isUser) = translations[position]
-        holder.binding.translationText.text = text
-        holder.binding.speakerLabel.text = if (isUser) "You said:" else "Translation:"
+    ooverride fun onBindViewHolder(holder: TranslationViewHolder, position: Int) {
+    val (text, isUser) = translations[position]
+    holder.binding.translationText.text = text
+    holder.binding.speakerLabel.text = if (isUser) "You said:" else "Translation:"
+    
+    val layoutParams = holder.binding.root.layoutParams as RecyclerView.LayoutParams
+    val alignment = if (isUser) Gravity.END else Gravity.START
         
         val params = holder.binding.translationText.layoutParams as ViewGroup.MarginLayoutParams
         if (isUser) {
