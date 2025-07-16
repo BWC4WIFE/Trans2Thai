@@ -24,7 +24,7 @@ class TranslationAdapter : RecyclerView.Adapter<TranslationAdapter.TranslationVi
     if (isUser) {
         holder.binding.speakerLabel.text = "You said:"
         // Assuming you have a color resource named 'user_message_background'
-        holder.binding.translationText.setBackgroundResource(R.drawable.user_chat_bubble)
+        holder.binding.translationText.setBackgroundResource(R.drawable.chat_bubble)
     } else {
         holder.binding.speakerLabel.text = "Translation:"
         // Assuming you have a color resource named 'translation_message_background'
