@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.gemweblive"
+    namespace = "com.Trans2Thai"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.gemweblive"
+        applicationId = "com.Trans2Thai"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
@@ -61,17 +61,17 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     
     // Coroutines
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
     // Networking
-    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation ("com.squareup.okhttp3:okhttp:4.12.0")
 
     // JSON Parsing
-    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation ("com.google.code.gson:gson:2.10.1")
 
     // UI
-    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation ("androidx.recyclerview:recyclerview:1.3.2")
 }
 
 
