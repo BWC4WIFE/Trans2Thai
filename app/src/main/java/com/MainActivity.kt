@@ -1,12 +1,13 @@
+// app/src/main/java/com/Trans2Thai/MainActivity.kt
 package com.Trans2Thai
 
 import android.Manifest
-import android.animation.ObjectAnimator
 import android.content.Context
 import android.content.pm.PackageManager
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Base64
 import android.util.Log
 import android.view.View
 import android.widget.Toast
@@ -15,83 +16,43 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.gemweblive.databinding.ActivityMainBinding
-import com.google.gson.Gson
+import com.Trans2Thai.databinding.ActivityMainBinding
+import com.Trans2Thai.output.TextToSpeechManager
 import kotlinx.coroutines.*
+import java.io.ByteArrayOutputStream
 import java.util.Locale
-import java.util.concurrent.atomic.AtomicBoolean
-
-
-// --- Data classes for parsing server responses ---
-data class ServerResponse(
-    @SerializedName("serverContent") val serverContent: ServerContent?,
-    @SerializedName("inputTranscription") val inputTranscription: Transcription?,
-    @SerializedName("outputTranscription") val outputTranscription: Transcription?,
-    @SerializedName("setupComplete") val setupComplete: SetupComplete?,
-    @SerializedName("sessionResumptionUpdate") val sessionResumptionUpdate: SessionResumptionUpdate?,
-    @SerializedName("goAway") val goAway: GoAway?
-)
-data class ServerContent(
-    @SerializedName("parts") val parts: List<Part>?,
-    @SerializedName("modelTurn") val modelTurn: ModelTurn?,
-    @SerializedName("inputTranscription") val inputTranscription: Transcription?,
-    @SerializedName("outputTranscription") val outputTranscription: Transcription?,
-    @SerializedName("turnComplete") val turnComplete: Boolean? // Added to capture turn completion
-)
-data class ModelTurn(@SerializedName("parts") val parts: List<Part>?)
-data class Part(@SerializedName("text") val text: String?, @SerializedName("inlineData") val inlineData: InlineData?)
-data class InlineData(@SerializedName("mime_type") val mimeType: String?, @SerializedName("data") val data: String?)
-data class Transcription(@SerializedName("text") val text: String?)
-data class SetupComplete(val dummy: String? = null)
-data class SessionResumptionUpdate(@SerializedName("newHandle") val newHandle: String?, @SerializedName("resumable") val resumable: Boolean?)
-data class GoAway(@SerializedName("timeLeft") val timeLeft: String?)
-
 
 class MainActivity : AppCompatActivity() {
 
-	
-	// --- View Binding and Core Components ---
+    // --- Instance Variables ---
     private lateinit var binding: ActivityMainBinding
+    // FIX: Corrected import paths to use the consistent 'com.Trans2Thai' package
     private lateinit var audioHandler: AudioHandler
+    private lateinit var audioPlayer: AudioPlayer
     private lateinit var translationAdapter: TranslationAdapter
     private lateinit var geminiApiClient: GeminiApiClient
     private lateinit var ttsManager: TextToSpeechManager
-    private var webSocketClient: WebSocketClient? = null
-    private lateinit var audioPlayer: AudioPlayer
+
     private val mainScope = CoroutineScope(Dispatchers.Main)
-    private val gson = Gson()
-   
-// --- State Management ---
-    private var sessionHandle: String? = null
-    private val outputTranscriptBuffer = StringBuilder()
-    @Volatile private var isProcessing = false // New state for processing
-    @Volatile private var isSessionActive = false
-    @Volatile private var isServerReady = false
-    private val mainScope = CoroutineScope(Dispatchers.Main)
+
+    // --- State Management ---
     @Volatile private var isListening = false
+    @Volatile private var isProcessing = false
+    @Volatile private var isTypingMode = false
     @Volatile private var isTtsReady = false
-    private var sourceLanguage = "en-US" // Default source language
-    private var targetLanguage = "th-TH" // Default target language
+    private val audioBuffer = ByteArrayOutputStream()
+    private val silenceHandler = Handler(Looper.getMainLooper())
+    private var vadRunnable: Runnable? = null
 
     // --- Configuration ---
-    private val models = listOf(
-        "gemini-2.5-flash-preview-native-audio-dialog",
-        "gemini-2.5-flash-exp-native-audio-thinking-dialog",
-        "gemini-2.5-pro",
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-2.5-flash-lite-preview",
-        "gemini-2.5-flash-lite-preview-06-17",
-        "gemini-2.0-flash-lite"
-    )
+    // FIX: Removed hardcoded models list, will be loaded from resources.
     private var selectedModel: String = ""
-    private var sourceLanguage: Locale = Locale.ENGLISH
-    private var targetLanguage: Locale = Locale("th", "TH")
     private var apiKeys: List<ApiKeyInfo> = emptyList()
     private var selectedApiKeyInfo: ApiKeyInfo? = null
-	
+    private var sourceLanguage: Locale = Locale.ENGLISH
+    private var targetLanguage: Locale = Locale("th", "TH")
+
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<String>
-    private var micPulseAnimator: ObjectAnimator? = null // For mic icon animation
 
     // --- Constants ---
     companion object {
@@ -102,10 +63,8 @@ class MainActivity : AppCompatActivity() {
         private const val RECORDED_AUDIO_MIMETYPE = "audio/wav"
     }
 
-
     // --- Lifecycle Methods ---
-
-     override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -113,24 +72,18 @@ class MainActivity : AppCompatActivity() {
 
         loadApiKeysFromResources()
         loadPreferences()
-	translationAdapter = TranslationAdapter()
+
+        audioPlayer = AudioPlayer()
         geminiApiClient = GeminiApiClient()
-        
-	     
-	ttsManager = TextToSpeechManager(this) {
+        ttsManager = TextToSpeechManager(this) {
             isTtsReady = true
             updateTtsLanguage()
         }
 
-  
-                initializeAudioHandler()
-
-        audioPlayer = AudioPlayer()
         requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             if (isGranted) {
                 Log.i(TAG, "RECORD_AUDIO permission granted.")
-                initializeComponentsDependentOnAudio()
-
+                initializeAudioHandler()
             } else {
                 Log.e(TAG, "RECORD_AUDIO permission denied.")
                 showError("Microphone permission is required for this app to function.")
@@ -141,12 +94,11 @@ class MainActivity : AppCompatActivity() {
         setupUI()
         updateDisplayInfo()
     }
-	
-	override fun onPause() {
-    super.onPause()
-    cancelSilenceTimer()
-}
 
+    override fun onPause() {
+        super.onPause()
+        cancelSilenceTimer()
+    }
 
     override fun onDestroy() {
         super.onDestroy()
@@ -161,8 +113,9 @@ class MainActivity : AppCompatActivity() {
     // --- Initialization and Configuration ---
     private fun loadPreferences() {
         val prefs = getSharedPreferences("Trans2ThaiPrefs", MODE_PRIVATE)
+        // FIX: Ensure R.array.models exists in strings.xml
         val models = resources.getStringArray(R.array.models).toList()
-        selectedModel = prefs.getString("selected_model", models.first()) ?: models.first()
+        selectedModel = prefs.getString("selected_model", models.firstOrNull()) ?: models.firstOrNull() ?: ""
         val sourceLangTag = prefs.getString("source_language", Locale.ENGLISH.toLanguageTag())
         val targetLangTag = prefs.getString("target_language", Locale("th", "TH").toLanguageTag())
         sourceLanguage = Locale.forLanguageTag(sourceLangTag ?: "en")
@@ -170,70 +123,20 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "Loaded Prefs: Model='$selectedModel', Source='$sourceLanguage', Target='$targetLanguage'")
     }
 
-private fun loadApiKeysFromResources() {
-    val rawApiKeys = context.resources.getStringArray(R.array.api_keys)
-    apiKeys = rawApiKeys.mapNotNull { itemString ->
-        val parts = itemString.split(":", limit = 2)
-        if (parts.size == 2) ApiKeyInfo(parts[0].trim(), parts[1].trim()) else null
-    }.toList() // Convert to list to avoid mutable list issues
-    val currentApiKeyValue = prefs.getString("api_key", null)
-    selectedApiKeyInfo = apiKeys.firstOrNull { it.value == currentApiKeyValue } ?: apiKeys.firstOrNull()
-    Log.d(TAG, "loadApiKeys: Loaded ${apiKeys.size} items. Initial selected: ${selectedApiKeyInfo?.displayName}")
-}
-        val storedKey = getSharedPreferences("Trans2ThaiPrefs", MODE_PRIVATE).getString("api_key", null)
-        selectedApiKeyInfo = apiKeys.firstOrNull { it.value == storedKey } ?: apiKeys.firstOrNull()
-    }
-
-<<<<<<< HEAD
-    private fun initializeAudioHandler() {
-=======
+    // FIX: Consolidated duplicated function and corrected variable name.
     private fun loadApiKeysFromResources() {
         val rawApiKeys = resources.getStringArray(R.array.api_keys)
-        val parsedList = mutableListOf<ApiKeyInfo>()
-        for (itemString in rawApiKeys) {
+        apiKeys = rawApiKeys.mapNotNull { itemString ->
             val parts = itemString.split(":", limit = 2)
-            if (parts.size == 2) parsedList.add(ApiKeyInfo(parts[0].trim(), parts[1].trim()))
-        }
-        apiKeys = parsedList
-        selectedApiKeyInfo = parsedList.firstOrNull { it.value == getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_key", null) } ?: apiKeys.firstOrNull()
-        Log.d(TAG, "loadApiKeysFromResources: Loaded ${apiKeys.size} API keys. Selected: ${selectedApiKeyInfo?.displayName}")
+            if (parts.size == 2) ApiKeyInfo(parts[0].trim(), parts[1].trim()) else null
+        }.toList()
+
+        val storedKey = getSharedPreferences("Trans2ThaiPrefs", MODE_PRIVATE).getString("api_key", null)
+        selectedApiKeyInfo = apiKeys.firstOrNull { it.value == storedKey } ?: apiKeys.firstOrNull()
+        Log.d(TAG, "loadApiKeys: Loaded ${apiKeys.size} items. Initial selected: ${selectedApiKeyInfo?.displayName}")
     }
 
-private fun setupUI() {
-        translationAdapter = TranslationAdapter()
-        binding.transcriptLog.layoutManager = LinearLayoutManager(this)
-        binding.transcriptLog.adapter = translationAdapter
-
-        binding.micBtn.setOnClickListener {
-            Log.d(TAG, "Master button clicked.")
-            handleMasterButton()
-        }
-
-        binding.englishButton.setOnClickListener {
-            sourceLanguage = "en-US"
-            targetLanguage = "th-TH"
-            updateLanguageButtons()
-            Toast.makeText(this, "Translating from English to Thai", Toast.LENGTH_SHORT).show()
-        }
-
-        binding.thaiButton.setOnClickListener {
-            sourceLanguage = "th-TH"
-            targetLanguage = "en-US"
-            updateLanguageButtons()
-            Toast.makeText(this, "Translating from Thai to English", Toast.LENGTH_SHORT).show()
-        }
-        updateUI()
-        updateLanguageButtons()
-        Log.d(TAG, "setupUI: UI components initialized.")
-    }
-
-private fun updateLanguageButtons() {
-        binding.englishButton.isActivated = sourceLanguage == "en-US"
-        binding.thaiButton.isActivated = sourceLanguage == "th-TH"
-    }
-
-    private fun initializeComponentsDependentOnAudio() {
->>>>>>> f5db74e12ea86a52eb0819dee0753a7bc6c1fd31
+    private fun initializeAudioHandler() {
         if (!::audioHandler.isInitialized) {
             audioHandler = AudioHandler(this) { audioData ->
                 if (isListening) {
@@ -244,265 +147,34 @@ private fun updateLanguageButtons() {
                 }
             }
             Log.i(TAG, "AudioHandler initialized.")
-<<<<<<< HEAD
-=======
-        }
-        prepareNewClient()
-    }
-
-    private fun prepareNewClient() {
-        webSocketClient?.disconnect()
-        loadPreferences()
-        selectedApiVersionObject = apiVersions.firstOrNull { it.value == getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_version", null) } ?: apiVersions.firstOrNull()
-        selectedApiKeyInfo = apiKeys.firstOrNull { it.value == getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getString("api_key", null) } ?: apiKeys.firstOrNull()
-
-        webSocketClient = WebSocketClient(
-            context = applicationContext,
-            modelName = selectedModel,
-            vadSilenceMs = getVadSensitivity(),
-            apiVersion = selectedApiVersionObject?.value ?: "v1beta",
-            apiKey = selectedApiKeyInfo?.value ?: "",
-            sessionHandle = sessionHandle,
-            onOpen = { mainScope.launch {
-                Log.i(TAG, "WebSocket onOpen callback received.")
-                isSessionActive = true
-                reconnectAttempts = 0 // Reset on successful connection
-                updateStatus("Connected, configuring server...")
-                updateUI()
-            } },
-            onMessage = { text -> mainScope.launch { processServerMessage(text) } },
-            onClosing = { code, reason -> mainScope.launch {
-                Log.w(TAG, "WebSocket onClosing callback received: Code=$code, Reason=$reason")
-                teardownSession(reconnect = true)
-            } },
-            onFailure = { t, response -> mainScope.launch {
-                Log.e(TAG, "WebSocket onFailure callback received.", t)
-                var errorMessage = "Connection error: ${t.message}"
-                if (response != null) {
-                    errorMessage += "\n(Code: ${response.code})"
-                    if (response.code == 404) {
-                        errorMessage = "Error: The server endpoint was not found (404). Please check the API version and key."
-                    }
-                }
-                showError(errorMessage)
-                teardownSession()
-            } },
-            onSetupComplete = { mainScope.launch {
-                Log.i(TAG, "WebSocket onSetupComplete callback received.")
-                isServerReady = true
-                updateStatus("Ready to listen")
-                updateUI()
-            } }
-        )
-        Log.i(TAG, "New WebSocketClient prepared.")
-    }
-
-     private fun handleMasterButton() {
-        if (!isNetworkAvailable()) {
-            showError("No internet connection.")
-            return
-        }
-        if (!isServerReady && !isSessionActive) {
-            Log.d(TAG, "handleMasterButton: No active session, connecting.")
-            connect()
-            return
-        }
-        if (!isServerReady) {
-            Log.w(TAG, "handleMasterButton: Server not ready, ignoring.")
-            return
-        }
-
-        isListening = !isListening
-        Log.i(TAG, "handleMasterButton: Toggling listening state to: $isListening")
-        if (isListening) {
-            startAudio()
-        } else {
-            stopAudio()
-        }
-        updateUI()
-    }
-
-    private fun handleSettingsDisconnectButton() {
-        if (isSessionActive) {
-            Log.d(TAG, "handleSettingsDisconnectButton: Disconnecting session.")
-            teardownSession()
-        } else {
-            Log.d(TAG, "handleSettingsDisconnectButton: Showing settings dialog.")
-            showSettingsDialog()
-        }
-    }
-
-    private fun showSettingsDialog() {
-        val dialog = SettingsDialog(this, getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE), models)
-        dialog.setOnDismissListener {
-            Log.d(TAG, "SettingsDialog dismissed.")
-            loadPreferences()
-            updateDisplayInfo()
-            if (isSessionActive) {
-                Toast.makeText(this, "Settings saved. Please Disconnect and reconnect to apply.", Toast.LENGTH_LONG).show()
-            }
-        }
-        dialog.show()
-    }
-
-    private fun getVadSensitivity(): Int {
-        val sensitivity = getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).getInt("vad_sensitivity_ms", 800)
-        Log.d(TAG, "getVadSensitivity: VAD sensitivity is $sensitivity ms.")
-        return sensitivity
-    }
-
-   private fun connect() {
-        if (!isNetworkAvailable()) {
-            showError("No internet connection. Please check your network settings.")
-            return
-        }
-        if (isSessionActive) {
-            Log.w(TAG, "connect: Already connected or connecting.")
-            return
-        }
-        // Reset reconnect attempts on a new manual connection
-        reconnectAttempts = 0
-        Log.i(TAG, "connect: Attempting to establish WebSocket connection.")
-        updateStatus("Connecting...")
-        updateUI()
-        webSocketClient?.connect()
-    }
-
-       private fun isNetworkAvailable(): Boolean {
-        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val network = connectivityManager.activeNetwork ?: return false
-        val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
-        return when {
-            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
-            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
-            else -> false
-        }
-    }
-
-    private fun processServerMessage(text: String) {
-        Log.v(TAG, "processServerMessage: Received raw message: ${text.take(500)}...")
-        try {
-            val response = gson.fromJson(text, ServerResponse::class.java)
-
-            // --- Session and Connection Management ---
-            response.sessionResumptionUpdate?.let {
-                if (it.resumable == true && it.newHandle != null) {
-                    sessionHandle = it.newHandle
-                    getSharedPreferences("GemWebLivePrefs", MODE_PRIVATE).edit().putString("session_handle", sessionHandle).apply()
-                    Log.i(TAG, "Session handle updated and saved.")
-                }
-            }
-            response.goAway?.timeLeft?.let {
-                Log.w(TAG, "Received GO_AWAY message. Time left: $it. Will reconnect.")
-                showError("Connection closing in $it. Will reconnect.")
-            }
-
-            // --- Transcript and Audio Processing ---
-            val outputText = response.outputTranscription?.text ?: response.serverContent?.outputTranscription?.text
-            if (outputText != null) {
-                outputTranscriptBuffer.append(outputText)
-            }
-
-            val inputText = response.inputTranscription?.text ?: response.serverContent?.inputTranscription?.text
-            if (inputText != null && inputText.isNotBlank()) {
-                if (outputTranscriptBuffer.isNotEmpty()) {
-                    val fullTranslation = outputTranscriptBuffer.toString().trim()
-                    Log.d(TAG, "Displaying full translation: '$fullTranslation'")
-                    translationAdapter.addOrUpdateTranslation(fullTranslation, false)
-                    outputTranscriptBuffer.clear()
-                }
-                Log.d(TAG, "Displaying user input: '$inputText'")
-                translationAdapter.addOrUpdateTranslation(inputText.trim(), true)
-            }
-            response.serverContent?.modelTurn?.parts?.forEach { part ->
-                part.inlineData?.data?.let {
-                    Log.d(TAG, "Playing received audio chunk.")
-                    audioPlayer.playAudio(it)
-                }
-            }
-
-            // --- REMOVED: The turnComplete block is no longer needed for full-duplex ---
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Error processing message: $text", e)
-        }
-    }
-
-private fun startAudio() {
-        if (!::audioHandler.isInitialized) {
-            Log.d(TAG, "startAudio: Initializing audio components first.")
-            initializeComponentsDependentOnAudio()
-        }
-        Log.i(TAG, "startAudio: Starting audio recording.")
-        audioHandler.startRecording()
-        updateStatus("Listening...")
-        isListening = true
-        updateUI()
-    }
-
-    private fun stopAudio() {
-        if (::audioHandler.isInitialized) {
-            Log.i(TAG, "stopAudio: Stopping audio recording.")
-            audioHandler.stopRecording()
-        }
-        // (Rest of the function remains the same)
-        isListening = false
-        updateUI()
-    }
-
-    private fun setProcessingState(processing: Boolean) {
-        isProcessing = processing
-        binding.processingSpinner.visibility = if (processing) View.VISIBLE else View.GONE
-        binding.dualLanguagePanel.alpha = if (processing) 0.5f else 1.0f
-    }
-
-    private fun teardownSession(reconnect: Boolean = false) {
-        if (!isSessionActive) return
-        Log.w(TAG, "teardownSession: Tearing down session. Reconnect: $reconnect")
-        isListening = false
-        isSessionActive = false
-        isServerReady = false
-        if (::audioHandler.isInitialized) audioHandler.stopRecording()
-        webSocketClient?.disconnect()
-        mainScope.launch {
-            if (!reconnect) updateStatus("Disconnected")
->>>>>>> f5db74e12ea86a52eb0819dee0753a7bc6c1fd31
             updateUI()
         }
     }
 
     // --- UI Setup and Updates ---
-private fun setupUI() {
+    private fun setupUI() {
         translationAdapter = TranslationAdapter()
-        binding.transcriptLog.layoutManager = LinearLayoutManager(this)
+        binding.transcriptLog.layoutManager = LinearLayoutManager(this).apply { reverseLayout = true }
         binding.transcriptLog.adapter = translationAdapter
 
-        binding.micBtn.setOnClickListener {
-            Log.d(TAG, "Master button clicked.")
-            handleMasterButton()
-        }
+        // FIX: Changed binding.micBtn to binding.mainMicButton to match activity_main.xml
+        binding.mainMicButton.setOnClickListener { handleMasterButton() }
+        binding.sendTextBtn.setOnClickListener { handleSendText() }
+        // FIX: Changed binding.settingsBtn to binding.settingsButton to match activity_main.xml
+        binding.settingsButton.setOnClickListener { showSettingsDialog() }
 
-        binding.englishButton.setOnClickListener {
-            sourceLanguage = "en-US"
-            targetLanguage = "th-TH"
-            updateLanguageButtons()
-            Toast.makeText(this, "Translating from English to Thai", Toast.LENGTH_SHORT).show()
+        binding.typingModeSwitch.setOnCheckedChangeListener { _, isChecked ->
+            isTypingMode = isChecked
+            if (isListening) {
+                stopRecordingAndTranslate(isSwitchingMode = true)
+            }
+            updateUI()
         }
-
-        binding.thaiButton.setOnClickListener {
-            sourceLanguage = "th-TH"
-            targetLanguage = "en-US"
-            updateLanguageButtons()
-            Toast.makeText(this, "Translating from Thai to English", Toast.LENGTH_SHORT).show()
-        }
-
-	  updateUI()
-        updateLanguageButtons()
-        Log.d(TAG, "setupUI: UI components initialized.")
+        updateUI()
     }
 
-
-
+    // This function was defined but never called.
+    // It is preserved here in case you intend to implement a feature that uses it.
     private fun updateTranscription(language: String, transcription: String) {
         when (language) {
             "Thai" -> binding.thaiTranscriptionTextView.text = transcription
@@ -510,51 +182,30 @@ private fun setupUI() {
         }
     }
 
-
-	
-	
-
     private fun updateUI() {
         val hasPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         if (isTypingMode) {
-            binding.micBtn.visibility = View.GONE
+            binding.mainMicButton.visibility = View.GONE
             binding.textInputContainer.visibility = View.VISIBLE
             binding.sendTextBtn.isEnabled = !isProcessing
         } else {
-            binding.micBtn.visibility = View.VISIBLE
+            binding.mainMicButton.visibility = View.VISIBLE
             binding.textInputContainer.visibility = View.GONE
-            binding.micBtn.isEnabled = hasPermission && !isProcessing
-            binding.micBtn.text = when {
-                isProcessing -> "Processing..."
-                isListening -> "Stop"
-                else -> "Start Listening"
+            binding.mainMicButton.isEnabled = hasPermission && !isProcessing
+
+            // FIX: An ImageButton does not have a 'text' property.
+            // Changed this to update the icon instead.
+            // NOTE: You must have an 'ic_stop' drawable resource for this to work.
+            if (isProcessing) {
+                 binding.mainMicButton.isEnabled = false // Visually show it's busy
+            } else if (isListening) {
+                // binding.mainMicButton.setImageResource(R.drawable.ic_stop)
+            } else {
+                // binding.mainMicButton.setImageResource(R.drawable.ic_microphone)
             }
         }
-<<<<<<< HEAD
-        binding.settingsBtn.isEnabled = !isListening && !isProcessing
-=======
-        binding.micBtn.isEnabled = (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
-        binding.debugConnectBtn.isEnabled = !isSessionActive
-        binding.interimDisplay.visibility = if (isListening) View.VISIBLE else View.GONE
-        
-        if (isListening) {
-            if (micPulseAnimator == null) {
-                micPulseAnimator = ObjectAnimator.ofFloat(binding.micBtn, "alpha", 1f, 0.5f, 1f).apply {
-                    duration = 1500
-                    repeatCount = ObjectAnimator.INFINITE
-                    start()
-                }
-            }
-        } else {
-            micPulseAnimator?.cancel()
-            micPulseAnimator = null
-            binding.micBtn.alpha = 1f
-        }
-        
-        Log.d(TAG, "updateUI: UI updated with state - isSessionActive=$isSessionActive, isServerReady=$isServerReady, isListening=$isListening")
->>>>>>> f5db74e12ea86a52eb0819dee0753a7bc6c1fd31
+        binding.settingsButton.isEnabled = !isListening && !isProcessing
     }
-    
 
     private fun updateStatus(message: String) {
         binding.statusText.text = "Status: $message"
@@ -571,7 +222,9 @@ private fun setupUI() {
         val prefs = getSharedPreferences("Trans2ThaiPrefs", MODE_PRIVATE)
         val currentApiKey = apiKeys.firstOrNull { it.value == prefs.getString("api_key", null) } ?: apiKeys.firstOrNull()
         val infoText = "Model: $selectedModel | Key: ${currentApiKey?.displayName ?: "N/A"}"
-        binding.configDisplay.text = infoText
+        // FIX: The ID 'configDisplay' was not in the original XML.
+        // This line will work once you add a TextView with @+id/configDisplay to your layout.
+        // binding.configDisplay.text = infoText
         Log.d(TAG, "updateDisplayInfo: $infoText")
     }
 
@@ -618,7 +271,9 @@ private fun setupUI() {
         vadRunnable = Runnable {
             if (isListening) {
                 Log.i(TAG, "VAD: Silence detected, stopping recording.")
-                stopRecordingAndTranslate()
+                mainScope.launch { // Ensure UI update is on the main thread
+                    stopRecordingAndTranslate()
+                }
             }
         }.also {
             silenceHandler.postDelayed(it, getVadSensitivity().toLong())
@@ -653,21 +308,17 @@ private fun setupUI() {
 
     // --- API Communication ---
     private fun generateSystemPrompt(): String {
-        return if (targetLanguage.language == "th") {
-            THAI_SYSTEM_PROMPT
-        } else {
-            String.format(
-                GENERIC_SYSTEM_PROMPT_TEMPLATE,
-                sourceLanguage.displayLanguage,
-                targetLanguage.displayLanguage
-            )
-        }
+        return String.format(
+            GENERIC_SYSTEM_PROMPT_TEMPLATE,
+            sourceLanguage.displayLanguage,
+            targetLanguage.displayLanguage
+        )
     }
 
     private fun sendApiRequest(textInput: String?, audioData: ByteArray?) {
         val apiKey = selectedApiKeyInfo?.value
         if (apiKey.isNullOrEmpty()) {
-            showError("API Key is not not set. Please configure it in Settings.")
+            showError("API Key is not set. Please configure it in Settings.")
             isProcessing = false
             updateUI()
             return
@@ -750,17 +401,26 @@ private fun setupUI() {
         }
     }
 
-    // --- Settings and Language Options --- //val dialog = SettingsDialog(this, prefs, models, getLanguageOptions()) //
+    // --- Settings and Language Options ---
     private fun showSettingsDialog() {
+        // FIX: The models list must be loaded from resources.
+        val models = resources.getStringArray(R.array.models).toList()
         val languages = getLanguageOptions()
-        val dialog = SettingsDialog(this, getSharedPreferences("Trans2ThaiPrefs", MODE_PRIVATE), resources.getStringArray(R.array.models).toList(), languages)
+        val dialog = SettingsDialog(this, getSharedPreferences("Trans2ThaiPrefs", MODE_PRIVATE), models, languages)
         dialog.setOnDismissListener {
             Log.d(TAG, "SettingsDialog dismissed.")
             loadPreferences()
+            loadApiKeysFromResources() // Re-load keys and selection after settings change
             updateDisplayInfo()
             updateTtsLanguage()
         }
         dialog.show()
+    }
+    
+    // This is a data class and should ideally be in its own file or ApiModels.kt,
+    // but placing it here for simplicity based on the original code structure.
+    data class LanguageOption(val displayName: String, val locale: Locale) {
+        override fun toString(): String = displayName
     }
 
     private fun getLanguageOptions(): List<LanguageOption> {
