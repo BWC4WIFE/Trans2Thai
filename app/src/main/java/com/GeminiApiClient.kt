@@ -9,8 +9,11 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
+import android.content.Context // <-- Add this import
+import android.net.ConnectivityManager
 
 class GeminiApiClient {
+    
 
     private val client = OkHttpClient()
     private val gson = Gson()
@@ -29,10 +32,17 @@ class GeminiApiClient {
      * @return A Result wrapper containing the parsed GenerateContentResponse on success or an Exception on failure.
      */
     suspend fun generateContent(
+        context: Context,
         apiKey: String,
         modelName: String,
         requestBody: GenerateContentRequest
     ): Result<GenerateContentResponse> = withContext(Dispatchers.IO) {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val activeNetwork = connectivityManager.activeNetworkInfo
+        if (activeNetwork?.isConnectedOrConnecting != true) {
+            Log.e(TAG, "Network check failed: No internet connection.")
+            return@withContext Result.failure(IOException("No internet connection. Please check your network settings."))
+        }
         val url = String.format(API_URL_TEMPLATE, modelName)
         val jsonBody = gson.toJson(requestBody)
         val request = Request.Builder()
