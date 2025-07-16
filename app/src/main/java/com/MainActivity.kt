@@ -1,11 +1,4 @@
-<<<<<<< HEAD
 package com.Trans2Thai
-=======
-//repaired added logging//
-package com.Trans2Thai
-
-package com.gemweblive
->>>>>>> f5db74e12ea86a52eb0819dee0753a7bc6c1fd31
 
 import android.Manifest
 import android.animation.ObjectAnimator
@@ -14,9 +7,6 @@ import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.util.Base64
 import android.util.Log
 import android.view.View
 import android.widget.Toast
@@ -25,16 +15,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.Trans2Thai.databinding.ActivityMainBinding
-import com.Trans2Thai.output.TextToSpeechManager
+import com.gemweblive.databinding.ActivityMainBinding
+import com.google.gson.Gson
+import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
-<<<<<<< HEAD
-import java.io.ByteArrayOutputStream
-import java.util.Locale
-import com.Trans2Thai.AudioHandler
-import com.Trans2Thai.AudioPlayer
-import com.Trans2Thai.TranslationAdapter
-=======
 import okhttp3.Response
 import java.lang.StringBuilder
 
@@ -62,30 +46,20 @@ data class Transcription(@SerializedName("text") val text: String?)
 data class SetupComplete(val dummy: String? = null)
 data class SessionResumptionUpdate(@SerializedName("newHandle") val newHandle: String?, @SerializedName("resumable") val resumable: Boolean?)
 data class GoAway(@SerializedName("timeLeft") val timeLeft: String?)
->>>>>>> f5db74e12ea86a52eb0819dee0753a7bc6c1fd31
+
 
 class MainActivity : AppCompatActivity() {
 
-    // --- Instance Variables ---
+	// Instance Variables ---
     private lateinit var binding: ActivityMainBinding
     private lateinit var audioHandler: AudioHandler
-    private lateinit var audioPlayer: AudioPlayer
+    private var webSocketClient: WebSocketClient? = null
     private lateinit var translationAdapter: TranslationAdapter
-    private lateinit var geminiApiClient: GeminiApiClient
-    private lateinit var ttsManager: TextToSpeechManager
-
+    private lateinit var audioPlayer: AudioPlayer
     private val mainScope = CoroutineScope(Dispatchers.Main)
-
-    // --- State Management ---
-<<<<<<< HEAD
-    @Volatile private var isListening = false
-    @Volatile private var isProcessing = false
-    @Volatile private var isTypingMode = false
-    @Volatile private var isTtsReady = false
-    private val audioBuffer = ByteArrayOutputStream()
-    private val silenceHandler = Handler(Looper.getMainLooper())
-    private var vadRunnable: Runnable? = null
-=======
+    private val gson = Gson()
+   
+// --- State Management ---
     private var sessionHandle: String? = null
     private val outputTranscriptBuffer = StringBuilder()
     @Volatile private var isListening = false
@@ -94,8 +68,6 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var isServerReady = false
     private var sourceLanguage = "en-US" // Default source language
     private var targetLanguage = "th-TH" // Default target language
-
->>>>>>> f5db74e12ea86a52eb0819dee0753a7bc6c1fd31
 
     // --- Configuration ---
     private val models = listOf(
@@ -111,11 +83,8 @@ class MainActivity : AppCompatActivity() {
     private var selectedModel: String = ""
     private var apiKeys: List<ApiKeyInfo> = emptyList()
     private var selectedApiKeyInfo: ApiKeyInfo? = null
-<<<<<<< HEAD
     private var sourceLanguage: Locale = Locale.ENGLISH
     private var targetLanguage: Locale = Locale("th", "TH")
-=======
->>>>>>> f5db74e12ea86a52eb0819dee0753a7bc6c1fd31
 
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<String>
     private var micPulseAnimator: ObjectAnimator? = null // For mic icon animation
@@ -129,12 +98,10 @@ class MainActivity : AppCompatActivity() {
         private const val RECORDED_AUDIO_MIMETYPE = "audio/wav"
     }
 
-<<<<<<< HEAD
+
     // --- Lifecycle Methods ---
-    override fun onCreate(savedInstanceState: Bundle?) {
-=======
+
      override fun onCreate(savedInstanceState: Bundle?) {
->>>>>>> f5db74e12ea86a52eb0819dee0753a7bc6c1fd31
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -143,25 +110,21 @@ class MainActivity : AppCompatActivity() {
         loadApiKeysFromResources()
         loadPreferences()
 
-        audioPlayer = AudioPlayer()
         geminiApiClient = GeminiApiClient()
         ttsManager = TextToSpeechManager(this) {
             isTtsReady = true
             updateTtsLanguage()
         }
 
-        requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-            if (isGranted) {
-                Log.i(TAG, "RECORD_AUDIO permission granted.")
-<<<<<<< HEAD
+  
                 initializeAudioHandler()
-=======
+
         audioPlayer = AudioPlayer()
         requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             if (isGranted) {
                 Log.i(TAG, "RECORD_AUDIO permission granted.")
                 initializeComponentsDependentOnAudio()
->>>>>>> f5db74e12ea86a52eb0819dee0753a7bc6c1fd31
+
             } else {
                 Log.e(TAG, "RECORD_AUDIO permission denied.")
                 showError("Microphone permission is required for this app to function.")
@@ -503,25 +466,35 @@ private fun startAudio() {
     }
 
     // --- UI Setup and Updates ---
-    private fun setupUI() {
+private fun setupUI() {
         translationAdapter = TranslationAdapter()
-        binding.transcriptLog.layoutManager = LinearLayoutManager(this).apply { reverseLayout = true }
+        binding.transcriptLog.layoutManager = LinearLayoutManager(this)
         binding.transcriptLog.adapter = translationAdapter
 
-        binding.micBtn.setOnClickListener { handleMasterButton() }
-        binding.sendTextBtn.setOnClickListener { handleSendText() }
-        binding.settingsBtn.setOnClickListener { showSettingsDialog() }
-
-        binding.typingModeSwitch.setOnCheckedChangeListener { _, isChecked ->
-            isTypingMode = isChecked
-            if (isListening) {
-                stopRecordingAndTranslate(isSwitchingMode = true)
-            }
-            updateUI()
+        binding.micBtn.setOnClickListener {
+            Log.d(TAG, "Master button clicked.")
+            handleMasterButton()
         }
-        updateUI()
+
+        binding.englishButton.setOnClickListener {
+            sourceLanguage = "en-US"
+            targetLanguage = "th-TH"
+            updateLanguageButtons()
+            Toast.makeText(this, "Translating from English to Thai", Toast.LENGTH_SHORT).show()
+        }
+
+        binding.thaiButton.setOnClickListener {
+            sourceLanguage = "th-TH"
+            targetLanguage = "en-US"
+            updateLanguageButtons()
+            Toast.makeText(this, "Translating from Thai to English", Toast.LENGTH_SHORT).show()
+        }
+
+	  updateUI()
+        updateLanguageButtons()
+        Log.d(TAG, "setupUI: UI components initialized.")
     }
-	
+
 
 
     private fun updateTranscription(language: String, transcription: String) {
