@@ -157,6 +157,19 @@ class MainActivity : AppCompatActivity() {
         binding.transcriptLog.layoutManager = LinearLayoutManager(this).apply { reverseLayout = true }
         binding.transcriptLog.adapter = translationAdapter
 
+        binding.englishButton.setOnClickListener {
+            sourceLanguage = Locale.ENGLISH
+            targetLanguage = Locale("th", "TH")
+            updateDisplayInfo() // To reflect the change in the UI
+            Toast.makeText(this, "Source: English, Target: Thai", Toast.LENGTH_SHORT).show()
+        }
+        
+        binding.thaiButton.setOnClickListener {
+            sourceLanguage = Locale("th", "TH")
+            targetLanguage = Locale.ENGLISH
+            updateDisplayInfo() // To reflect the change in the UI
+            Toast.makeText(this, "Source: Thai, Target: English", Toast.LENGTH_SHORT).show()
+    }
         // FIX: Changed binding.micBtn to binding.mainMicButton to match activity_main.xml
         binding.mainMicButton.setOnClickListener { handleMasterButton() }
         binding.sendTextBtn.setOnClickListener { handleSendText() }
@@ -194,11 +207,22 @@ class MainActivity : AppCompatActivity() {
             binding.mainMicButton.isEnabled = hasPermission && !isProcessing
 
             // FIX: An ImageButton does not have a 'text' property.
-            // Changed this to update the icon instead.
-            // NOTE: You must have an 'ic_stop' drawable resource for this to work.
+ 
+            if (isListening) {
+  
+    binding.mainMicButton.setColorFilter(ContextCompat.getColor(this, R.color.listening_color), android.graphics.PorterDuff.Mode.SRC_IN)
+   
+    // binding.mainMicButton.startAnimation(pulseAnimation)
+} else {
+    binding.mainMicButton.clearColorFilter()
+    // binding.mainMicButton.clearAnimation()
+}
             if (isProcessing) {
                  binding.mainMicButton.isEnabled = false // Visually show it's busy
-            } else if (isListening) {
+            } 
+            binding.processingSpinner.visibility = if (isProcessing) View.VISIBLE else View.GONE
+binding.dualLanguagePanel.alpha = if (isProcessing) 0.5f else 1.0f // Optional: make the panel semi-transparent
+            else if (isListening) {
                 // binding.mainMicButton.setImageResource(R.drawable.ic_stop)
             } else {
                 // binding.mainMicButton.setImageResource(R.drawable.ic_microphone)
