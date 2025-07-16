@@ -1,5 +1,4 @@
 package com.Trans2Thai
-package com.Trans2Thai
 
 import android.Manifest
 import android.content.Context
@@ -158,7 +157,7 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
 *   **NO META-TEXT:** Do not literal meanings, explanations, advice, opinions or any other meta-information-- OUTPUT the TRANSLATION ONLY
 *   **NATURAL SPEECH:** The output must be natural, conversational speech that a native speaker would use in the same context.`You are an expert translator. Translate the user's audio from English to Thai. Your response must include the translated audio in MP3 format and the translated text."""
     }
-    private const val REQUESTED_AUDIO_MIMETYPE = "audio/mp3"
+        private const val REQUESTED_AUDIO_MIMETYPE = "audio/mp3"
         private const val RECORDED_AUDIO_MIMETYPE = "audio/wav"
     }
 
