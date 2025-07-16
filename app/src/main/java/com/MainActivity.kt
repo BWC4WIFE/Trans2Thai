@@ -1,9 +1,9 @@
-// app/src/main/java/com/Trans2Thai/MainActivity.kt
 package com.Trans2Thai
 
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -21,13 +21,11 @@ import com.Trans2Thai.output.TextToSpeechManager
 import kotlinx.coroutines.*
 import java.io.ByteArrayOutputStream
 import java.util.Locale
-import android.net.ConnectivityManager
 
 class MainActivity : AppCompatActivity() {
 
     // --- Instance Variables ---
     private lateinit var binding: ActivityMainBinding
-    // FIX: Corrected import paths to use the consistent 'com.Trans2Thai' package
     private lateinit var audioHandler: AudioHandler
     private lateinit var audioPlayer: AudioPlayer
     private lateinit var translationAdapter: TranslationAdapter
@@ -39,14 +37,14 @@ class MainActivity : AppCompatActivity() {
     // --- State Management ---
     @Volatile private var isListening = false
     @Volatile private var isProcessing = false
-    @Volatile private var isTypingMode = false
+    // NOTE: isTypingMode functionality is removed as the switch is not in the layout
+    // @Volatile private var isTypingMode = false
     @Volatile private var isTtsReady = false
     private val audioBuffer = ByteArrayOutputStream()
     private val silenceHandler = Handler(Looper.getMainLooper())
     private var vadRunnable: Runnable? = null
 
     // --- Configuration ---
-    // FIX: Removed hardcoded models list, will be loaded from resources.
     private var selectedModel: String = ""
     private var apiKeys: List<ApiKeyInfo> = emptyList()
     private var selectedApiKeyInfo: ApiKeyInfo? = null
@@ -59,9 +57,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val TAG = "MainActivity"
         private const val GENERIC_SYSTEM_PROMPT_TEMPLATE = "You are an expert translator. Translate the user's input from %s to %s. Your response must include the translated audio in MP3 format and the translated text."
-        private const val REQUESTED_AUDIO_MIMETYPE = "audio/mp3"
-        private const val RECORDED_AUDIO_MIMETYPE = "audio/wav"
-        private const val THAI_SYSTEM_PROMPT = """
+        private const val THAI_SYSTEM_PROMPT_TEXT = """
 ### **LLM System Prompt: Bilingual Live Thai-English Interpreter (Pattaya Bar Scene)**
 
 **1. ROLE AND OBJECTIVE**
@@ -161,6 +157,9 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
 *   **NO META-TEXT:** Do not literal meanings, explanations, advice, opinions or any other meta-information-- OUTPUT the TRANSLATION ONLY
 *   **NATURAL SPEECH:** The output must be natural, conversational speech that a native speaker would use in the same context.`You are an expert translator. Translate the user's audio from English to Thai. Your response must include the translated audio in MP3 format and the translated text."""
     }
+    private const val REQUESTED_AUDIO_MIMETYPE = "audio/mp3"
+        private const val RECORDED_AUDIO_MIMETYPE = "audio/wav"
+    }
 
     // --- Lifecycle Methods ---
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -212,9 +211,8 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
     // --- Initialization and Configuration ---
     private fun loadPreferences() {
         val prefs = getSharedPreferences("Trans2ThaiPrefs", MODE_PRIVATE)
-        // FIX: Ensure R.array.models exists in strings.xml
         val models = resources.getStringArray(R.array.models).toList()
-        selectedModel = prefs.getString("selected_model", models.firstOrNull()) ?: models.firstOrNull() ?: ""
+        selectedModel = prefs.getString("selected_model", models.firstOrNull()) ?: ""
         val sourceLangTag = prefs.getString("source_language", Locale.ENGLISH.toLanguageTag())
         val targetLangTag = prefs.getString("target_language", Locale("th", "TH").toLanguageTag())
         sourceLanguage = Locale.forLanguageTag(sourceLangTag ?: "en")
@@ -222,7 +220,6 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
         Log.d(TAG, "Loaded Prefs: Model='$selectedModel', Source='$sourceLanguage', Target='$targetLanguage'")
     }
 
-    // FIX: Consolidated duplicated function and corrected variable name.
     private fun loadApiKeysFromResources() {
         val rawApiKeys = resources.getStringArray(R.array.api_keys)
         apiKeys = rawApiKeys.mapNotNull { itemString ->
@@ -259,84 +256,58 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
         binding.englishButton.setOnClickListener {
             sourceLanguage = Locale.ENGLISH
             targetLanguage = Locale("th", "TH")
-            updateDisplayInfo() // To reflect the change in the UI
+            updateDisplayInfo()
             Toast.makeText(this, "Source: English, Target: Thai", Toast.LENGTH_SHORT).show()
         }
         
         binding.thaiButton.setOnClickListener {
             sourceLanguage = Locale("th", "TH")
             targetLanguage = Locale.ENGLISH
-            updateDisplayInfo() // To reflect the change in the UI
+            updateDisplayInfo()
             Toast.makeText(this, "Source: Thai, Target: English", Toast.LENGTH_SHORT).show()
-    }
-        // FIX: Changed binding.micBtn to binding.mainMicButton to match activity_main.xml
-        binding.mainMicButton.setOnClickListener { handleMasterButton() }
-        binding.sendTextBtn.setOnClickListener { handleSendText() }
-        // FIX: Changed binding.settingsBtn to binding.settingsButton to match activity_main.xml
-        binding.settingsButton.setOnClickListener { showSettingsDialog() }
-
-        binding.typingModeSwitch.setOnCheckedChangeListener { _, isChecked ->
-            isTypingMode = isChecked
-            if (isListening) {
-                stopRecordingAndTranslate(isSwitchingMode = true)
-            }
-            updateUI()
         }
+        
+        // FIX: Changed binding.mainMicButton to binding.micBtn to match activity_main.xml
+        binding.micBtn.setOnClickListener { handleMasterButton() }
+        
+        // NOTE: The following listeners are removed as the views are not in the layout.
+        // binding.sendTextBtn.setOnClickListener { handleSendText() }
+        // binding.settingsButton.setOnClickListener { showSettingsDialog() }
+        // binding.typingModeSwitch.setOnCheckedChangeListener { _, isChecked -> ... }
+
         updateUI()
     }
-
-    // This function was defined but never called.
-    // It is preserved here in case you intend to implement a feature that uses it.
-    private fun updateTranscription(language: String, transcription: String) {
-        when (language) {
-            "Thai" -> binding.thaiTranscriptionTextView.text = transcription
-            "English" -> binding.englishTranscriptionTextView.text = transcription
-        }
-    }
-
-private fun updateUI() {
-    val hasPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
     
-    // Show/hide the typing interface vs. the microphone button
-    if (isTypingMode) {
-        binding.mainMicButton.visibility = View.GONE
-        binding.textInputContainer.visibility = View.VISIBLE
-        binding.sendTextBtn.isEnabled = !isProcessing
-    } else {
-        binding.mainMicButton.visibility = View.VISIBLE
-        binding.textInputContainer.visibility = View.GONE
-        binding.mainMicButton.isEnabled = hasPermission && !isProcessing
-    }
+    // NOTE: This function is removed as its TextViews are not in the layout.
+    // private fun updateTranscription(language: String, transcription: String) { ... }
 
-    // Show a spinner and dim the panel when processing a translation
-    binding.processingSpinner.visibility = if (isProcessing) View.VISIBLE else View.GONE
-    binding.dualLanguagePanel.alpha = if (isProcessing) 0.5f else 1.0f
-
-    // Give visual feedback when the microphone is active
-    if (isListening) {
-        binding.mainMicButton.setImageResource(R.drawable.ic_stop) // Change icon to a stop square
-        // Apply the color tint
-        binding.mainMicButton.setColorFilter(ContextCompat.getColor(this, R.color.listening_color), android.graphics.PorterDuff.Mode.SRC_IN)
+    private fun updateUI() {
+        val hasPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         
-        // Optional: Start a pulse animation
-        // val pulseAnimation = AnimationUtils.loadAnimation(this, R.anim.pulse)
-        // binding.mainMicButton.startAnimation(pulseAnimation)
+        // NOTE: Logic for typing mode is removed. The mic button is always visible.
+        binding.micBtn.visibility = View.VISIBLE
+        binding.micBtn.isEnabled = hasPermission && !isProcessing
 
-    } else {
-        binding.mainMicButton.setImageResource(R.drawable.ic_mic) // Change icon back to microphone
-        binding.mainMicButton.clearColorFilter() // Remove the color tint
-        binding.mainMicButton.clearAnimation() // Stop the animation
+        binding.processingSpinner.visibility = if (isProcessing) View.VISIBLE else View.GONE
+        binding.dualLanguagePanel.alpha = if (isProcessing) 0.5f else 1.0f
+
+        if (isListening) {
+            // NOTE: Using text for the button state, not changing icon resource
+            binding.micBtn.text = "Stop"
+            binding.micBtn.setBackgroundColor(ContextCompat.getColor(this, R.color.listening_color))
+        } else {
+            binding.micBtn.text = "Connect"
+            binding.micBtn.setBackgroundColor(ContextCompat.getColor(this, com.google.android.material.R.color.design_default_color_primary))
+        }
+        
+        // NOTE: Logic for disabling settings button is removed as it's not in the layout.
+        // binding.settingsButton.isEnabled = !isListening && !isProcessing
     }
-    
-    // Disable settings button while listening or processing
-    binding.settingsButton.isEnabled = !isListening && !isProcessing
-}
 
-private fun isNetworkAvailable(): Boolean {
-    val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    val activeNetwork = connectivityManager.activeNetworkInfo
-    return activeNetwork?.isConnectedOrConnecting == true
-}
+    private fun isNetworkAvailable(): Boolean {
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        return connectivityManager.activeNetworkInfo?.isConnectedOrConnecting == true
+    }
     
     private fun updateStatus(message: String) {
         binding.statusText.text = "Status: $message"
@@ -353,9 +324,7 @@ private fun isNetworkAvailable(): Boolean {
         val prefs = getSharedPreferences("Trans2ThaiPrefs", MODE_PRIVATE)
         val currentApiKey = apiKeys.firstOrNull { it.value == prefs.getString("api_key", null) } ?: apiKeys.firstOrNull()
         val infoText = "Model: $selectedModel | Key: ${currentApiKey?.displayName ?: "N/A"}"
-        // FIX: The ID 'configDisplay' was not in the original XML.
-        // This line will work once you add a TextView with @+id/configDisplay to your layout.
-        // binding.configDisplay.text = infoText
+        binding.configDisplay.text = infoText
         Log.d(TAG, "updateDisplayInfo: $infoText")
     }
 
@@ -402,7 +371,7 @@ private fun isNetworkAvailable(): Boolean {
         vadRunnable = Runnable {
             if (isListening) {
                 Log.i(TAG, "VAD: Silence detected, stopping recording.")
-                mainScope.launch { // Ensure UI update is on the main thread
+                mainScope.launch {
                     stopRecordingAndTranslate()
                 }
             }
@@ -420,32 +389,10 @@ private fun isNetworkAvailable(): Boolean {
         return getSharedPreferences("Trans2ThaiPrefs", MODE_PRIVATE).getInt("vad_sensitivity_ms", 1200)
     }
 
-    // --- Text Input Processing ---
-    private fun handleSendText() {
-        val text = binding.textInputEdittext.text.toString().trim()
-        if (text.isEmpty()) {
-            showError("Please enter text to translate.")
-            return
-        }
-        if (isProcessing) return
-
-        binding.textInputEdittext.text.clear()
-        isProcessing = true
-        updateStatus("Translating text...")
-        updateUI()
-        translationAdapter.addOrUpdateTranslation(text, true)
-        sendApiRequest(textInput = text, audioData = null)
-    }
+    // NOTE: This function is removed as it relies on views not in the layout
+    // private fun handleSendText() { ... }
 
     // --- API Communication ---
-    private fun generateSystemPrompt(): String {
-        return String.format(
-            GENERIC_SYSTEM_PROMPT_TEMPLATE,
-            sourceLanguage.displayLanguage,
-            targetLanguage.displayLanguage
-        )
-    }
-
     private fun sendApiRequest(textInput: String?, audioData: ByteArray?) {
         val apiKey = selectedApiKeyInfo?.value
         if (apiKey.isNullOrEmpty()) {
@@ -460,38 +407,26 @@ private fun isNetworkAvailable(): Boolean {
             val useThaiPrompt = prefs.getBoolean("use_thai_prompt", false)
 
             val systemInstruction: Content
-
             if (useThaiPrompt) {
-                // Build the multi-part Thai-specific prompt
-                val instructionParts = THAI_SYSTEM_PROMPT_TEXT
-                    .trim()
-                    .split(Regex("\\n\\s*\\n"))
-                    .map { Part(text = it.trim()) }
+                val instructionParts = THAI_SYSTEM_PROMPT_TEXT.trim().split(Regex("\\n\\s*\\n")).map { Part(text = it.trim()) }
                 systemInstruction = Content(parts = instructionParts, role = "user")
                 Log.d(TAG, "Using Thai-Specific System Prompt.")
-
             } else {
-                // Build the generic, single-part prompt
-                val promptText = String.format(
-                    GENERIC_SYSTEM_PROMPT_TEMPLATE,
-                    sourceLanguage.displayLanguage,
-                    targetLanguage.displayLanguage
-                )
+                val promptText = String.format(GENERIC_SYSTEM_PROMPT_TEMPLATE, sourceLanguage.displayLanguage, targetLanguage.displayLanguage)
                 systemInstruction = Content(parts = listOf(Part(text = promptText)), role = "user")
                 Log.d(TAG, "Using Generic System Prompt.")
             }
 
-            
-            val parts = mutableListOf<Part>()
+            val userParts = mutableListOf<Part>()
             if (textInput != null) {
-                parts.add(Part(text = textInput))
+                userParts.add(Part(text = textInput))
             }
             if (audioData != null) {
                 val audioBase64 = Base64.encodeToString(audioData, Base64.NO_WRAP)
-                parts.add(Part(inlineData = Blob(mimeType = RECORDED_AUDIO_MIMETYPE, data = audioBase64)))
+                userParts.add(Part(inlineData = Blob(mimeType = RECORDED_AUDIO_MIMETYPE, data = audioBase64)))
             }
 
-            if (parts.isEmpty()) {
+            if (userParts.isEmpty()) {
                 showError("No input provided.")
                 isProcessing = false
                 updateUI()
@@ -500,7 +435,7 @@ private fun isNetworkAvailable(): Boolean {
 
             val request = GenerateContentRequest(
                 contents = listOf(
-                    systemInstruction, // Use the dynamically created instruction
+                    systemInstruction,
                     Content(parts = listOf(Part(text = "Understood. I am ready.")), role = "model"),
                     Content(parts = userParts)
                 ),
@@ -508,9 +443,8 @@ private fun isNetworkAvailable(): Boolean {
             )
 
             val result = geminiApiClient.generateContent(this@MainActivity, selectedApiKeyInfo!!.value, selectedModel, request)
-    
-    handleApiResponse(result)
-}
+            handleApiResponse(result)
+        }
     }
 
     private fun handleApiResponse(result: Result<GenerateContentResponse>) {
@@ -523,19 +457,18 @@ private fun isNetworkAvailable(): Boolean {
             val textPart = content.parts.find { it.text != null }?.text
             if (textPart != null) {
                 translationAdapter.addOrUpdateTranslation(textPart.trim(), false)
-                if (isTypingMode && isTtsReady) {
-                    ttsManager.speak(textPart)
-                }
+                // NOTE: TTS in typing mode is removed
+                // if (isTypingMode && isTtsReady) { ttsManager.speak(textPart) }
             } else {
                 translationAdapter.addOrUpdateTranslation("(No text translation received)", false)
             }
-
-            if (!isTypingMode) {
-                val audioPart = content.parts.find { it.inlineData != null }?.inlineData
-                if (audioPart != null && audioPart.mimeType.startsWith("audio/")) {
-                    audioPlayer.playAudio(audioPart.data)
-                }
+            
+            // NOTE: Only play audio if not in typing mode (which is always the case now)
+            val audioPart = content.parts.find { it.inlineData != null }?.inlineData
+            if (audioPart != null && audioPart.mimeType.startsWith("audio/")) {
+                audioPlayer.playAudio(audioPart.data)
             }
+            
         }.onFailure { error ->
             Log.e(TAG, "API Error", error)
             showError("Translation failed: ${error.message}")
@@ -561,35 +494,30 @@ private fun isNetworkAvailable(): Boolean {
 
     // --- Settings and Language Options ---
     private fun showSettingsDialog() {
-        // FIX: The models list must be loaded from resources.
         val models = resources.getStringArray(R.array.models).toList()
         val languages = getLanguageOptions()
         val dialog = SettingsDialog(this, getSharedPreferences("Trans2ThaiPrefs", MODE_PRIVATE), models, languages)
         dialog.setOnDismissListener {
             Log.d(TAG, "SettingsDialog dismissed.")
             loadPreferences()
-            loadApiKeysFromResources() // Re-load keys and selection after settings change
+            loadApiKeysFromResources()
             updateDisplayInfo()
             updateTtsLanguage()
         }
         dialog.show()
     }
     
-    // This is a data class and should ideally be in its own file or ApiModels.kt,
-    // but placing it here for simplicity based on the original code structure.
     data class LanguageOption(val displayName: String, val locale: Locale) {
         override fun toString(): String = displayName
     }
 
-   private fun getLanguageOptions(): List<LanguageOption> {
-    val displayNames = resources.getStringArray(R.array.language_display_names)
-    val languageTags = resources.getStringArray(R.array.language_tags)
-
-    // Combine the two arrays into a list of LanguageOption objects
-    return displayNames.zip(languageTags).map { (name, tag) ->
-        LanguageOption(name, Locale.forLanguageTag(tag))
+    private fun getLanguageOptions(): List<LanguageOption> {
+        val displayNames = resources.getStringArray(R.array.language_display_names)
+        val languageTags = resources.getStringArray(R.array.language_tags)
+        return displayNames.zip(languageTags).map { (name, tag) ->
+            LanguageOption(name, Locale.forLanguageTag(tag))
+        }
     }
-}
 
     private fun updateTtsLanguage() {
         if (isTtsReady) {
