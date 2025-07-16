@@ -413,7 +413,8 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
                 generationConfig = GenerationConfig(responseMimeType = REQUESTED_AUDIO_MIMETYPE)
             )
 
-            val result = geminiApiClient.generateContent(this@MainActivity, apiKey, selectedModel, request)
+            // THIS IS THE FIX: Using apiKey!! to assert it's not null
+            val result = geminiApiClient.generateContent(this@MainActivity, apiKey!!, selectedModel, request)
             handleApiResponse(result)
         }
     }
