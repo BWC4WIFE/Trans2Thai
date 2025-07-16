@@ -380,9 +380,10 @@ private fun isNetworkAvailable(): Boolean {
                 generationConfig = GenerationConfig(responseMimeType = REQUESTED_AUDIO_MIMETYPE)
             )
 
-            val result = geminiApiClient.generateContent(selectedApiKeyInfo!!.value, selectedModel, request)
-            handleApiResponse(result)
-        }
+            val result = geminiApiClient.generateContent(this@MainActivity, selectedApiKeyInfo!!.value, selectedModel, request)
+    
+    handleApiResponse(result)
+}
     }
 
     private fun handleApiResponse(result: Result<GenerateContentResponse>) {
