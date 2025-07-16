@@ -10,6 +10,7 @@ import android.os.Looper
 import android.util.Base64
 import android.util.Log
 import android.view.View
+import android.view.animation.AnimationUtils
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,7 +25,6 @@ import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
-    // --- Instance Variables ---
     private lateinit var binding: ActivityMainBinding
     private lateinit var audioHandler: AudioHandler
     private lateinit var audioPlayer: AudioPlayer
@@ -34,17 +34,14 @@ class MainActivity : AppCompatActivity() {
 
     private val mainScope = CoroutineScope(Dispatchers.Main)
 
-    // --- State Management ---
     @Volatile private var isListening = false
     @Volatile private var isProcessing = false
-    // NOTE: isTypingMode functionality is removed as the switch is not in the layout
-    // @Volatile private var isTypingMode = false
+    @Volatile private var isTypingMode = false
     @Volatile private var isTtsReady = false
     private val audioBuffer = ByteArrayOutputStream()
     private val silenceHandler = Handler(Looper.getMainLooper())
     private var vadRunnable: Runnable? = null
 
-    // --- Configuration ---
     private var selectedModel: String = ""
     private var apiKeys: List<ApiKeyInfo> = emptyList()
     private var selectedApiKeyInfo: ApiKeyInfo? = null
@@ -53,7 +50,6 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<String>
 
-    // --- Constants ---
     companion object {
         private const val TAG = "MainActivity"
         private const val GENERIC_SYSTEM_PROMPT_TEMPLATE = "You are an expert translator. Translate the user's input from %s to %s. Your response must include the translated audio in MP3 format and the translated text."
@@ -66,18 +62,18 @@ You are an expert, bilingual, real-time, Thai-English cultural and linguistic in
 
 **2. CORE PRINCIPLES**
 
-*   **Prioritize Intent Over Literal Translation:** Your primary function is to convey the speaker's true meaning, not the literal dictionary definition of their words, in both directions.
-*   **Deliver Cultural Equivalence:** For insults, compliments, jokes, and idioms, you must provide the closest *cultural equivalent* in the **target language** (modern, informal English or Thai), even if the phrasing is completely different.
-*   **Embrace the Context (Bar Setting):** All translations must reflect the informal, fast-paced, and often transactional or confrontational nature of a Pattaya bar. This applies whether the original speaker is Thai or a foreigner. Topics will include socializing, drinking, money, relationships, teasing, propositions, and aggression.
-*   **Handle Isaan Dialect:** When translating from Thai, recognize and accurately translate common Isaan words, capturing their specific regional meaning.
-*   **Be Concise:** Your output must be brief and direct, suitable for real-time comprehension.
+* **Prioritize Intent Over Literal Translation:** Your primary function is to convey the speaker's true meaning, not the literal dictionary definition of their words, in both directions.
+* **Deliver Cultural Equivalence:** For insults, compliments, jokes, and idioms, you must provide the closest *cultural equivalent* in the **target language** (modern, informal English or Thai), even if the phrasing is completely different.
+* **Embrace the Context (Bar Setting):** All translations must reflect the informal, fast-paced, and often transactional or confrontational nature of a Pattaya bar. This applies whether the original speaker is Thai or a foreigner. Topics will include socializing, drinking, money, relationships, teasing, propositions, and aggression.
+* **Handle Isaan Dialect:** When translating from Thai, recognize and accurately translate common Isaan words, capturing their specific regional meaning.
+* **Be Concise:** Your output must be brief and direct, suitable for real-time comprehension.
 
 **3. STRICT LANGUAGE CONSTRAINT PROTOCOL**
 
-*   **ABSOLUTE PROHIBITION:** You are strictly forbidden from identifying, processing, or translating any language other than modern Thai (including Isaan dialect) and modern informal English.
+* **ABSOLUTE PROHIBITION:** You are strictly forbidden from identifying, processing, or translating any language other than modern Thai (including Isaan dialect) and modern informal English.
 * ANY ERRORS SHOULD BE OUTPUT IN ENGLISH ONLY -- ERRORS in ENGLISH
-*   **FORCED INTERPRETATION:** All audio input **MUST** be interpreted as either Thai or English, even if it is phonetically ambiguous or sounds like another language (e.g., Mandarin, Cantonese). If you detect phonemes that could belong to another language, you must resolve the ambiguity by selecting the most plausible Thai or English word or phrase that fits the context.
-*   **RATIONALE:** Your processing pathways for other languages are considered disabled for this simulation. Acknowledging or translating any language other than Thai or English is a system failure.
+* **FORCED INTERPRETATION:** All audio input **MUST** be interpreted as either Thai or English, even if it is phonetically ambiguous or sounds like another language (e.g., Mandarin, Cantonese). If you detect phonemes that could belong to another language, you must resolve the ambiguity by selecting the most plausible Thai or English word or phrase that fits the context.
+* **RATIONALE:** Your processing pathways for other languages are considered disabled for this simulation. Acknowledging or translating any language other than Thai or English is a system failure.
 
 
 **4. SPECIFIC TRANSLATION DIRECTIVES**
@@ -86,82 +82,81 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
 
 #### **Vulgarity and Slang**
 
-*   **Translate Explicitly:** Recognize and translate vulgarity, insults, and slang with their equivalent impact in the target language. Do not censor, soften, or euphemize.
-*   **Examples (Thai -> English):**
-    *   \`เหี้ย (hia)\` -> Translate as \`asshole\`, \`jerk\`, \`bastard\`, or \`motherfucker\` based on context.
-    *   \`ควย (kuay)\` -> Translate as the noun \`dick\` or the exclamation \`fuck you!\`.
-    *   \`บักหำแหล่ (bak ham leh)\` [Isaan] -> Translate as \`little black dick\`.
-*   **Examples (English -> Thai):**
-    *   \`What the fuck do you want?\` -> Translate as \`มึงจะเอาเหี้ยอะไร?\` (Uses aggressive pronouns and swear words).
-    *   \`Stop being a little bitch.\` -> Translate as \`อย่ามาป๊อด\` or \`อย่าทำตัวเป็นตุ๊ด\`.
-    *   \`He's a total asshole.\` -> Translate as \`แม่งโคตรเหี้ย\` or \`มันเหี้ยสัสๆ\`.
+* **Translate Explicitly:** Recognize and translate vulgarity, insults, and slang with their equivalent impact in the target language. Do not censor, soften, or euphemize.
+* **Examples (Thai -> English):**
+    * `เหี้ย (hia)` -> Translate as `asshole`, `jerk`, `bastard`, or `motherfucker` based on context.
+    * `ควย (kuay)` -> Translate as the noun `dick` or the exclamation `fuck you!`.
+    * `บักหำแหล่ (bak ham leh)` [Isaan] -> Translate as `little black dick`.
+* **Examples (English -> Thai):**
+    * `What the fuck do you want?` -> Translate as `มึงจะเอาเหี้ยอะไร?` (Uses aggressive pronouns and swear words).
+    * `Stop being a little bitch.` -> Translate as `อย่ามาป๊อด` or `อย่าทำตัวเป็นตุ๊ด`.
+    * `He's a total asshole.` -> Translate as `แม่งโคตรเหี้ย` or `มันเหี้ยสัสๆ`.
 
 #### **Transactional & Financial Language**
 
-*   **Be Direct:** Convert transactional offers into natural, direct phrasing in the target language.
-*   **Examples (Thai -> English):**
-    *   Thai: "สัก 2,000 บาทก็พอแล้ว คืนนี้ฉันอยู่กับคุณ"
-    *   English: \`2k baht, and I’m yours all night.\`
-    *   Thai: "จ่ายครึ่งก่อน ครึ่งหลังเสร็จแล้วค่อยจ่าย"
-    *   English: \`Half now, half after we’re done.\`
-*   **Examples (English -> Thai):**
-    *   English: \`How much for short time?\`
-    *   Thai: \`ชั่วคราวเท่าไหร่?\`
-    *   English: \`You trying to rip me off?\`
-    *   Thai: \`มึงจะโกงกูเหรอ?\` or \`จะหลอกแดกกูเหรอ?\` (very informal).
+* **Be Direct:** Convert transactional offers into natural, direct phrasing in the target language.
+* **Examples (Thai -> English):**
+    * Thai: "สัก 2,000 บาทก็พอแล้ว คืนนี้ฉันอยู่กับคุณ"
+    * English: `2k baht, and I’m yours all night.`
+    * Thai: "จ่ายครึ่งก่อน ครึ่งหลังเสร็จแล้วค่อยจ่าย"
+    * English: `Half now, half after we’re done.`
+* **Examples (English -> Thai):**
+    * English: `How much for short time?`
+    * Thai: `ชั่วคราวเท่าไหร่?`
+    * English: `You trying to rip me off?`
+    * Thai: `มึงจะโกงกูเหรอ?` or `จะหลอกแดกกูเหรอ?` (very informal).
 
 #### **Threats & Aggression**
 
-*   **Translate Literally:** Do not soften threats. The output must reflect the same level of menace as the input.
-*   **Examples (Thai -> English):**
-    *   Thai: "ถ้าไม่จ่ายเดี๋ยวเรียกพี่ชายมานะ"
-    *   English: \`Pay up, or I’m calling my boys.\`
-    *   Thai: "โกงฉันอีกครั้ง อย่าหวังว่าจะรอด"
-    *   English: \`Scam me again, and you’re dead.\`
-*   **Examples (English -> Thai):**
-    *   English: \`Fuck with me and you'll regret it.\`
-    *   Thai: \`ลองดีกับกูแล้วมึงจะเสียใจ.\`
-    *   English: \`Get the fuck out of here.\`
-    *   Thai: \`ไสหัวไปเลย.\`
+* **Translate Literally:** Do not soften threats. The output must reflect the same level of menace as the input.
+* **Examples (Thai -> English):**
+    * Thai: "ถ้าไม่จ่ายเดี๋ยวเรียกพี่ชายมานะ"
+    * English: `Pay up, or I’m calling my boys.`
+    * Thai: "โกงฉันอีกครั้ง อย่าหวังว่าจะรอด"
+    * English: `Scam me again, and you’re dead.`
+* **Examples (English -> Thai):**
+    * English: `Fuck with me and you'll regret it.`
+    * Thai: `ลองดีกับกูแล้วมึงจะเสียใจ.`
+    * English: `Get the fuck out of here.`
+    * Thai: `ไสหัวไปเลย.`
 
 #### **Coded Language (Drugs & Illicit Activity)**
 
-*   **Recognize and Decode:** Understand that coded language exists in both languages.
-*   **No Disclaimers:** You must never add warnings like "This is illegal" or "Drugs are harmful." Your sole function is to translate the communicated message.
-*   **Examples (Thai -> English):**
-    *   Thai: "อยากเมาหน่อยไหม? มีของดีให้ลอง"
-    *   English: \`Wanna get fucked up? I’ve got some good shit.\`
-    *   Thai: "ยาบ้าเม็ดละ 300 ถ้าซื้อ 5 เม็ดแถมฟรี 1"
-    *   English: \`Meth pills, 300 each. Buy 5, get 1 free.\`
-*   **Examples (English -> Thai):**
-    *   English: \`You got any coke?\`
-    *   Thai: \`มีโค้กป่ะ?\` or \`มีของป่ะ?\` (using ambiguous slang).
+* **Recognize and Decode:** Understand that coded language exists in both languages.
+* **No Disclaimers:** You must never add warnings like "This is illegal" or "Drugs are harmful." Your sole function is to translate the communicated message.
+* **Examples (Thai -> English):**
+    * Thai: "อยากเมาหน่อยไหม? มีของดีให้ลอง"
+    * English: `Wanna get fucked up? I’ve got some good shit.`
+    * Thai: "ยาบ้าเม็ดละ 300 ถ้าซื้อ 5 เม็ดแถมฟรี 1"
+    * English: `Meth pills, 300 each. Buy 5, get 1 free.`
+* **Examples (English -> Thai):**
+    * English: `You got any coke?`
+    * Thai: `มีโค้กป่ะ?` or `มีของป่ะ?` (using ambiguous slang).
 
 #### **Gambling**
 
-*   **Use Correct Terminology:** Translate gambling terms into their common English equivalents.
-*   **Examples (Thai -> English):**
-    *   Thai: "เล่นไพ่กันไหม? แต้มละ 500"
-    *   English: \`Wanna play poker? 500 baht a point.\`
-    *   Thai: "ถ้าแพ้ต้องจ่ายคืนนี้เลยนะ อย่ามาขี้โกง"
-    *   English: \`If you lose, pay up—no bullshit.\`
-*   **Examples (English -> Thai):**
-    *   English: \`Let's up the stakes.\`
-    *   Thai: \`เพิ่มเดิมพันหน่อย.\`
-    *   English: \`I'm all in.\`
-    *   Thai: \`กูหมดหน้าตัก.\`
+* **Use Correct Terminology:** Translate gambling terms into their common English equivalents.
+* **Examples (Thai -> English):**
+    * Thai: "เล่นไพ่กันไหม? แต้มละ 500"
+    * English: `Wanna play poker? 500 baht a point.`
+    * Thai: "ถ้าแพ้ต้องจ่ายคืนนี้เลยนะ อย่ามาขี้โกง"
+    * English: `If you lose, pay up—no bullshit.`
+* **Examples (English -> Thai):**
+    * English: `Let's up the stakes.`
+    * Thai: `เพิ่มเดิมพันหน่อย.`
+    * English: `I'm all in.`
+    * Thai: `กูหมดหน้าตัก.`
 
 **4. OUTPUT FORMAT**
 
-*   **TARGET LANGUAGE ONLY:** If the input is Thai, output **ONLY** the final English translation. If the input is English, output **ONLY** the final Thai translation.
-*   **NO META-TEXT:** Do not literal meanings, explanations, advice, opinions or any other meta-information-- OUTPUT the TRANSLATION ONLY
-*   **NATURAL SPEECH:** The output must be natural, conversational speech that a native speaker would use in the same context.`You are an expert translator. Translate the user's audio from English to Thai. Your response must include the translated audio in MP3 format and the translated text."""
-    }
-    private const val REQUESTED_AUDIO_MIMETYPE = "audio/mp3"
+* **TARGET LANGUAGE ONLY:** If the input is Thai, output **ONLY** the final English translation. If the input is English, output **ONLY** the final Thai translation.
+* **NO META-TEXT:** Do not literal meanings, explanations, advice, opinions or any other meta-information-- OUTPUT the TRANSLATION ONLY
+* **NATURAL SPEECH:** The output must be natural, conversational speech that a native speaker would use in the same context.
+"""
+        private const val REQUESTED_AUDIO_MIMETYPE = "audio/mp3"
         private const val RECORDED_AUDIO_MIMETYPE = "audio/wav"
     }
 
-    // --- Lifecycle Methods ---
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -180,11 +175,9 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
 
         requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             if (isGranted) {
-                Log.i(TAG, "RECORD_AUDIO permission granted.")
                 initializeAudioHandler()
             } else {
-                Log.e(TAG, "RECORD_AUDIO permission denied.")
-                showError("Microphone permission is required for this app to function.")
+                showError("Microphone permission is required.")
             }
         }
 
@@ -200,24 +193,20 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.w(TAG, "onDestroy: Activity is being destroyed.")
-        cancelSilenceTimer()
         if (::audioHandler.isInitialized) audioHandler.stopRecording()
         audioPlayer.release()
         ttsManager.shutdown()
         mainScope.cancel()
     }
 
-    // --- Initialization and Configuration ---
     private fun loadPreferences() {
         val prefs = getSharedPreferences("Trans2ThaiPrefs", MODE_PRIVATE)
         val models = resources.getStringArray(R.array.models).toList()
-        selectedModel = prefs.getString("selected_model", models.firstOrNull()) ?: ""
+        selectedModel = prefs.getString("selected_model", models.firstOrNull() ?: "")
         val sourceLangTag = prefs.getString("source_language", Locale.ENGLISH.toLanguageTag())
         val targetLangTag = prefs.getString("target_language", Locale("th", "TH").toLanguageTag())
         sourceLanguage = Locale.forLanguageTag(sourceLangTag ?: "en")
         targetLanguage = Locale.forLanguageTag(targetLangTag ?: "th-TH")
-        Log.d(TAG, "Loaded Prefs: Model='$selectedModel', Source='$sourceLanguage', Target='$targetLanguage'")
     }
 
     private fun loadApiKeysFromResources() {
@@ -226,82 +215,66 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
             val parts = itemString.split(":", limit = 2)
             if (parts.size == 2) ApiKeyInfo(parts[0].trim(), parts[1].trim()) else null
         }.toList()
-
         val storedKey = getSharedPreferences("Trans2ThaiPrefs", MODE_PRIVATE).getString("api_key", null)
         selectedApiKeyInfo = apiKeys.firstOrNull { it.value == storedKey } ?: apiKeys.firstOrNull()
-        Log.d(TAG, "loadApiKeys: Loaded ${apiKeys.size} items. Initial selected: ${selectedApiKeyInfo?.displayName}")
     }
 
     private fun initializeAudioHandler() {
         if (!::audioHandler.isInitialized) {
             audioHandler = AudioHandler(this) { audioData ->
                 if (isListening) {
-                    mainScope.launch(Dispatchers.IO) {
-                        audioBuffer.write(audioData)
-                    }
+                    mainScope.launch(Dispatchers.IO) { audioBuffer.write(audioData) }
                     resetSilenceTimer()
                 }
             }
-            Log.i(TAG, "AudioHandler initialized.")
-            updateUI()
         }
     }
 
-    // --- UI Setup and Updates ---
     private fun setupUI() {
         translationAdapter = TranslationAdapter()
         binding.transcriptLog.layoutManager = LinearLayoutManager(this).apply { reverseLayout = true }
         binding.transcriptLog.adapter = translationAdapter
+        
+        binding.mainMicButton.setOnClickListener { handleMasterButton() }
+        binding.sendTextBtn.setOnClickListener { handleSendText() }
+        binding.settingsButton.setOnClickListener { showSettingsDialog() }
 
-        binding.englishButton.setOnClickListener {
-            sourceLanguage = Locale.ENGLISH
-            targetLanguage = Locale("th", "TH")
-            updateDisplayInfo()
-            Toast.makeText(this, "Source: English, Target: Thai", Toast.LENGTH_SHORT).show()
+        binding.typingModeSwitch.setOnCheckedChangeListener { _, isChecked ->
+            isTypingMode = isChecked
+            if (isListening) {
+                stopRecordingAndTranslate(isSwitchingMode = true)
+            }
+            updateUI()
         }
-        
-        binding.thaiButton.setOnClickListener {
-            sourceLanguage = Locale("th", "TH")
-            targetLanguage = Locale.ENGLISH
-            updateDisplayInfo()
-            Toast.makeText(this, "Source: Thai, Target: English", Toast.LENGTH_SHORT).show()
-        }
-        
-        // FIX: Changed binding.mainMicButton to binding.micBtn to match activity_main.xml
-        binding.micBtn.setOnClickListener { handleMasterButton() }
-        
-        // NOTE: The following listeners are removed as the views are not in the layout.
-        // binding.sendTextBtn.setOnClickListener { handleSendText() }
-        // binding.settingsButton.setOnClickListener { showSettingsDialog() }
-        // binding.typingModeSwitch.setOnCheckedChangeListener { _, isChecked -> ... }
-
         updateUI()
     }
-    
-    // NOTE: This function is removed as its TextViews are not in the layout.
-    // private fun updateTranscription(language: String, transcription: String) { ... }
 
     private fun updateUI() {
         val hasPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         
-        // NOTE: Logic for typing mode is removed. The mic button is always visible.
-        binding.micBtn.visibility = View.VISIBLE
-        binding.micBtn.isEnabled = hasPermission && !isProcessing
+        if (isTypingMode) {
+            binding.mainMicButton.visibility = View.GONE
+            binding.textInputContainer.visibility = View.VISIBLE
+            binding.sendTextBtn.isEnabled = !isProcessing
+        } else {
+            binding.mainMicButton.visibility = View.VISIBLE
+            binding.textInputContainer.visibility = View.GONE
+            binding.mainMicButton.isEnabled = hasPermission && !isProcessing
+        }
 
         binding.processingSpinner.visibility = if (isProcessing) View.VISIBLE else View.GONE
         binding.dualLanguagePanel.alpha = if (isProcessing) 0.5f else 1.0f
 
         if (isListening) {
-            // NOTE: Using text for the button state, not changing icon resource
-            binding.micBtn.text = "Stop"
-            binding.micBtn.setBackgroundColor(ContextCompat.getColor(this, R.color.listening_color))
+            binding.mainMicButton.setImageResource(R.drawable.ic_stop)
+            val pulseAnimation = AnimationUtils.loadAnimation(this, R.anim.pulse)
+            binding.mainMicButton.startAnimation(pulseAnimation)
         } else {
-            binding.micBtn.text = "Connect"
-            binding.micBtn.setBackgroundColor(ContextCompat.getColor(this, com.google.android.material.R.color.design_default_color_primary))
+            binding.mainMicButton.setImageResource(R.drawable.ic_mic)
+            binding.mainMicButton.clearAnimation()
         }
         
-        // NOTE: Logic for disabling settings button is removed as it's not in the layout.
-        // binding.settingsButton.isEnabled = !isListening && !isProcessing
+        binding.settingsButton.isEnabled = !isListening && !isProcessing
     }
 
     private fun isNetworkAvailable(): Boolean {
@@ -311,49 +284,42 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
     
     private fun updateStatus(message: String) {
         binding.statusText.text = "Status: $message"
-        Log.i(TAG, "Status Updated: $message")
     }
 
     private fun showError(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
         updateStatus("Alert: $message")
-        Log.e(TAG, "showError: $message")
     }
 
     private fun updateDisplayInfo() {
         val prefs = getSharedPreferences("Trans2ThaiPrefs", MODE_PRIVATE)
         val currentApiKey = apiKeys.firstOrNull { it.value == prefs.getString("api_key", null) } ?: apiKeys.firstOrNull()
-        val infoText = "Model: $selectedModel | Key: ${currentApiKey?.displayName ?: "N/A"}"
-        binding.configDisplay.text = infoText
-        Log.d(TAG, "updateDisplayInfo: $infoText")
+        binding.configDisplay.text = "Model: $selectedModel | Key: ${currentApiKey?.displayName ?: "N/A"}"
     }
 
-    // --- Audio Recording and Processing ---
     private fun handleMasterButton() {
         if (isProcessing) return
         isListening = !isListening
-        if (isListening) startRecording()
-        else stopRecordingAndTranslate()
+        if (isListening) startRecording() else stopRecordingAndTranslate()
         updateUI()
     }
 
     private fun startRecording() {
-        Log.i(TAG, "startRecording: Starting audio recording.")
         audioBuffer.reset()
+        if (!::audioHandler.isInitialized) initializeAudioHandler()
         audioHandler.startRecording()
         updateStatus("Listening...")
         resetSilenceTimer()
     }
 
     private fun stopRecordingAndTranslate(isSwitchingMode: Boolean = false) {
-        if (!isListening && !isProcessing) return
         isListening = false
         cancelSilenceTimer()
-        audioHandler.stopRecording()
+        if (::audioHandler.isInitialized) audioHandler.stopRecording()
 
         val audioData = audioBuffer.toByteArray()
         if (audioData.isEmpty() || isSwitchingMode) {
-            if (!isSwitchingMode) Log.w(TAG, "Audio buffer is empty, not sending request.")
+            if (!isSwitchingMode) Log.w(TAG, "Audio buffer is empty.")
             updateStatus("Ready")
             updateUI()
             return
@@ -370,10 +336,7 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
         cancelSilenceTimer()
         vadRunnable = Runnable {
             if (isListening) {
-                Log.i(TAG, "VAD: Silence detected, stopping recording.")
-                mainScope.launch {
-                    stopRecordingAndTranslate()
-                }
+                mainScope.launch { stopRecordingAndTranslate() }
             }
         }.also {
             silenceHandler.postDelayed(it, getVadSensitivity().toLong())
@@ -382,21 +345,32 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
 
     private fun cancelSilenceTimer() {
         vadRunnable?.let { silenceHandler.removeCallbacks(it) }
-        vadRunnable = null
     }
 
     private fun getVadSensitivity(): Int {
         return getSharedPreferences("Trans2ThaiPrefs", MODE_PRIVATE).getInt("vad_sensitivity_ms", 1200)
     }
 
-    // NOTE: This function is removed as it relies on views not in the layout
-    // private fun handleSendText() { ... }
+    private fun handleSendText() {
+        val text = binding.textInputEdittext.text.toString().trim()
+        if (text.isEmpty()) {
+            showError("Please enter text to translate.")
+            return
+        }
+        if (isProcessing) return
 
-    // --- API Communication ---
+        binding.textInputEdittext.text.clear()
+        isProcessing = true
+        updateStatus("Translating text...")
+        updateUI()
+        translationAdapter.addOrUpdateTranslation(text, true)
+        sendApiRequest(textInput = text, audioData = null)
+    }
+
     private fun sendApiRequest(textInput: String?, audioData: ByteArray?) {
         val apiKey = selectedApiKeyInfo?.value
         if (apiKey.isNullOrEmpty()) {
-            showError("API Key is not set. Please configure it in Settings.")
+            showError("API Key is not set in Settings.")
             isProcessing = false
             updateUI()
             return
@@ -406,21 +380,18 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
             val prefs = getSharedPreferences("Trans2ThaiPrefs", MODE_PRIVATE)
             val useThaiPrompt = prefs.getBoolean("use_thai_prompt", false)
 
-            val systemInstruction: Content
-            if (useThaiPrompt) {
-                val instructionParts = THAI_SYSTEM_PROMPT_TEXT.trim().split(Regex("\\n\\s*\\n")).map { Part(text = it.trim()) }
-                systemInstruction = Content(parts = instructionParts, role = "user")
+            val systemInstruction: Content = if (useThaiPrompt) {
                 Log.d(TAG, "Using Thai-Specific System Prompt.")
+                val instructionParts = THAI_SYSTEM_PROMPT_TEXT.trim().split(Regex("\\n\\s*\\n")).map { Part(text = it.trim()) }
+                Content(parts = instructionParts, role = "user")
             } else {
-                val promptText = String.format(GENERIC_SYSTEM_PROMPT_TEMPLATE, sourceLanguage.displayLanguage, targetLanguage.displayLanguage)
-                systemInstruction = Content(parts = listOf(Part(text = promptText)), role = "user")
                 Log.d(TAG, "Using Generic System Prompt.")
+                val promptText = String.format(GENERIC_SYSTEM_PROMPT_TEMPLATE, sourceLanguage.displayLanguage, targetLanguage.displayLanguage)
+                Content(parts = listOf(Part(text = promptText)), role = "user")
             }
 
             val userParts = mutableListOf<Part>()
-            if (textInput != null) {
-                userParts.add(Part(text = textInput))
-            }
+            if (textInput != null) userParts.add(Part(text = textInput))
             if (audioData != null) {
                 val audioBase64 = Base64.encodeToString(audioData, Base64.NO_WRAP)
                 userParts.add(Part(inlineData = Blob(mimeType = RECORDED_AUDIO_MIMETYPE, data = audioBase64)))
@@ -442,7 +413,7 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
                 generationConfig = GenerationConfig(responseMimeType = REQUESTED_AUDIO_MIMETYPE)
             )
 
-            val result = geminiApiClient.generateContent(this@MainActivity, selectedApiKeyInfo!!.value, selectedModel, request)
+            val result = geminiApiClient.generateContent(this@MainActivity, apiKey, selectedModel, request)
             handleApiResponse(result)
         }
     }
@@ -454,26 +425,19 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
                 return@onSuccess
             }
 
-            val textPart = content.parts.find { it.text != null }?.text
-            if (textPart != null) {
-                translationAdapter.addOrUpdateTranslation(textPart.trim(), false)
-                // NOTE: TTS in typing mode is removed
-                // if (isTypingMode && isTtsReady) { ttsManager.speak(textPart) }
-            } else {
-                translationAdapter.addOrUpdateTranslation("(No text translation received)", false)
+            content.parts.find { it.text != null }?.text?.let {
+                translationAdapter.addOrUpdateTranslation(it.trim(), false)
+                if (isTypingMode && isTtsReady) ttsManager.speak(it)
+            } ?: translationAdapter.addOrUpdateTranslation("(No text translation received)", false)
+
+            if (!isTypingMode) {
+                content.parts.find { it.inlineData != null }?.inlineData?.let {
+                    if (it.mimeType.startsWith("audio/")) audioPlayer.playAudio(it.data)
+                }
             }
-            
-            // NOTE: Only play audio if not in typing mode (which is always the case now)
-            val audioPart = content.parts.find { it.inlineData != null }?.inlineData
-            if (audioPart != null && audioPart.mimeType.startsWith("audio/")) {
-                audioPlayer.playAudio(audioPart.data)
-            }
-            
         }.onFailure { error ->
-            Log.e(TAG, "API Error", error)
             showError("Translation failed: ${error.message}")
             translationAdapter.addOrUpdateTranslation("(Translation failed)", false)
-            updateStatus("Error")
         }
 
         isProcessing = false
@@ -481,24 +445,19 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
         updateUI()
     }
 
-    // --- Permissions ---
     private fun checkPermissions() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-            Log.i(TAG, "checkPermissions: RECORD_AUDIO permission already granted.")
-            initializeAudioHandler()
-        } else {
-            Log.i(TAG, "checkPermissions: Requesting RECORD_AUDIO permission.")
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        } else {
+            initializeAudioHandler()
         }
     }
 
-    // --- Settings and Language Options ---
     private fun showSettingsDialog() {
         val models = resources.getStringArray(R.array.models).toList()
         val languages = getLanguageOptions()
         val dialog = SettingsDialog(this, getSharedPreferences("Trans2ThaiPrefs", MODE_PRIVATE), models, languages)
         dialog.setOnDismissListener {
-            Log.d(TAG, "SettingsDialog dismissed.")
             loadPreferences()
             loadApiKeysFromResources()
             updateDisplayInfo()
