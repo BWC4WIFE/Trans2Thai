@@ -17,10 +17,9 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.gemweblive.databinding.ActivityMainBinding
 import com.google.gson.Gson
-import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
-import okhttp3.Response
-import java.lang.StringBuilder
+import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 
 
 // --- Data classes for parsing server responses ---
@@ -50,11 +49,14 @@ data class GoAway(@SerializedName("timeLeft") val timeLeft: String?)
 
 class MainActivity : AppCompatActivity() {
 
-	// Instance Variables ---
+	
+	// --- View Binding and Core Components ---
     private lateinit var binding: ActivityMainBinding
     private lateinit var audioHandler: AudioHandler
-    private var webSocketClient: WebSocketClient? = null
     private lateinit var translationAdapter: TranslationAdapter
+    private lateinit var geminiApiClient: GeminiApiClient
+    private lateinit var ttsManager: TextToSpeechManager
+    private var webSocketClient: WebSocketClient? = null
     private lateinit var audioPlayer: AudioPlayer
     private val mainScope = CoroutineScope(Dispatchers.Main)
     private val gson = Gson()
@@ -62,10 +64,12 @@ class MainActivity : AppCompatActivity() {
 // --- State Management ---
     private var sessionHandle: String? = null
     private val outputTranscriptBuffer = StringBuilder()
-    @Volatile private var isListening = false
     @Volatile private var isProcessing = false // New state for processing
     @Volatile private var isSessionActive = false
     @Volatile private var isServerReady = false
+    private val mainScope = CoroutineScope(Dispatchers.Main)
+    @Volatile private var isListening = false
+    @Volatile private var isTtsReady = false
     private var sourceLanguage = "en-US" // Default source language
     private var targetLanguage = "th-TH" // Default target language
 
@@ -81,11 +85,11 @@ class MainActivity : AppCompatActivity() {
         "gemini-2.0-flash-lite"
     )
     private var selectedModel: String = ""
-    private var apiKeys: List<ApiKeyInfo> = emptyList()
-    private var selectedApiKeyInfo: ApiKeyInfo? = null
     private var sourceLanguage: Locale = Locale.ENGLISH
     private var targetLanguage: Locale = Locale("th", "TH")
-
+    private var apiKeys: List<ApiKeyInfo> = emptyList()
+    private var selectedApiKeyInfo: ApiKeyInfo? = null
+	
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<String>
     private var micPulseAnimator: ObjectAnimator? = null // For mic icon animation
 
@@ -109,9 +113,11 @@ class MainActivity : AppCompatActivity() {
 
         loadApiKeysFromResources()
         loadPreferences()
-
+	translationAdapter = TranslationAdapter()
         geminiApiClient = GeminiApiClient()
-        ttsManager = TextToSpeechManager(this) {
+        
+	     
+	ttsManager = TextToSpeechManager(this) {
             isTtsReady = true
             updateTtsLanguage()
         }
