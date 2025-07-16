@@ -202,7 +202,7 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
     private fun loadPreferences() {
         val prefs = getSharedPreferences("Trans2ThaiPrefs", MODE_PRIVATE)
         val models = resources.getStringArray(R.array.models).toList()
-        selectedModel = prefs.getString("selected_model", models.firstOrNull() ?: "")
+        selectedModel = prefs.getString("selected_model", models.firstOrNull() ?: "") ?: (models.firstOrNull() ?: "")
         val sourceLangTag = prefs.getString("source_language", Locale.ENGLISH.toLanguageTag())
         val targetLangTag = prefs.getString("target_language", Locale("th", "TH").toLanguageTag())
         sourceLanguage = Locale.forLanguageTag(sourceLangTag ?: "en")
@@ -414,7 +414,7 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
             )
 
             // THIS IS THE FIX: Using apiKey!! to assert it's not null
-            val result = geminiApiClient.generateContent(this@MainActivity, apiKey!!, selectedModel!!, request)
+            val result = geminiApiClient.generateContent(this@MainActivity, apiKey, selectedModel, request)
             handleApiResponse(result)
         }
     }
