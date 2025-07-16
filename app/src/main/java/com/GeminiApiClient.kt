@@ -9,7 +9,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
-import android.content.Context // <-- Add this import
+import android.content.Context
 import android.net.ConnectivityManager
 
 class GeminiApiClient {
@@ -53,8 +53,7 @@ class GeminiApiClient {
             .build()
 
         Log.d(TAG, "Request URL: $url")
-        // Log only a snippet of the request body if it contains large audio data
-        Log.d(TAG, "Request Body: ${jsonBody.take(400)}...")
+        Log.d(TAG, "Request Body: $jsonBody")
 
         try {
             val response = client.newCall(request).execute()
@@ -62,6 +61,7 @@ class GeminiApiClient {
 
             if (response.isSuccessful && responseBodyString != null) {
                 Log.d(TAG, "Response Success: ${response.code}")
+                Log.d(TAG, "Response Body: $responseBodyString")
                 val parsedResponse = gson.fromJson(responseBodyString, GenerateContentResponse::class.java)
                 Result.success(parsedResponse)
             } else {
