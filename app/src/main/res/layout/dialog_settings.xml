@@ -33,27 +33,30 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
 
-	<TextView
-		android:layout_width="wrap_content"
-		android:layout_height="wrap_content"
-		android:layout_marginTop="16dp"
-		android:text="Source Language" />
-	<Spinner
-		android:id="@+id/sourceLanguageSpinner"
-		android:layout_width="match_parent"
-		android:layout_height="wrap_content" />
-	<TextView
-		android:layout_width="wrap_content"
-		android:layout_height="wrap_content"
-		android:layout_marginTop="16dp"
-		android:text="Target Language" />
-	<Spinner
-		android:id="@+id/targetLanguageSpinner"
-		android:layout_width="match_parent"
-		android:layout_height="wrap_content" />
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Source Language" />
+
+    <Spinner
+        android:id="@+id/sourceLanguageSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
 
     <TextView
-		android:id="@+id/apiVersionLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Target Language" />
+
+    <Spinner
+        android:id="@+id/targetLanguageSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <TextView
+        android:id="@+id/apiVersionLabel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
@@ -61,29 +64,9 @@
 
     <Spinner
         android:id="@+id/apiVersionSpinner"
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:entries="@array/api_versions" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="API Key" />
-
-    <Spinner
-        android:id="@+id/apiKeySpinner"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp" />
-
-    <Button
-        android:id="@+id/saveSettingsBtn"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginTop="16dp"
-        android:text="Save" />
-
+        android:entries="@array/api_versions" />
 
     <TextView
         android:layout_width="wrap_content"
@@ -102,6 +85,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:text="Use Thai-Specific Prompt" />
+
     <Button
         android:id="@+id/saveSettingsBtn"
         android:layout_width="wrap_content"
@@ -109,7 +93,5 @@
         android:layout_gravity="center_horizontal"
         android:layout_marginTop="16dp"
         android:text="Save" />
-
-</LinearLayout>
 
 </LinearLayout>
