@@ -4,7 +4,7 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.Trans2Thai.databinding.ItemTranslationBinding
+import com.gemweblive.databinding.ItemTranslationBinding
 
 class TranslationAdapter : RecyclerView.Adapter<TranslationAdapter.TranslationViewHolder>() {
 
