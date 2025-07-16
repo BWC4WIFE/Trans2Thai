@@ -4,6 +4,7 @@
     <color name="white">#FFFFFFFF</color>
     <color name="purple_700">#FF3700B3</color>
         <color name="user_message_background">#E6F3FA</color>
+    <color name="listening_color">#FF03A9F4</color>
     <color name="translation_message_background">#D3D3D3</color>
 
 </resources>
