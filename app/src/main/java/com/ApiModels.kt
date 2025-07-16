@@ -1,8 +1,9 @@
+// app/src/main/java/com/Trans2Thai/ApiModels.kt
 package com.Trans2Thai
 
 import com.google.gson.annotations.SerializedName
-import java.util.Locale
 
+// ... (rest of the file is unchanged) ...
 // --- Request Data Classes ---
 
 data class GenerateContentRequest(
@@ -57,6 +58,10 @@ data class SafetyRating(
     val probability: String
 )
 
+data class Language(val DisplayName: String, val Locale: Locale) {
+        override fun toString(): String = displayName
+    }
+
 // --- Data classes for local use in Settings ---
 // These were moved here from MainActivity for better organization.
 data class ApiVersion(val displayName: String, val value: String) {
@@ -64,11 +69,5 @@ data class ApiVersion(val displayName: String, val value: String) {
 }
 
 data class ApiKeyInfo(val displayName: String, val value: String) {
-    override fun toString(): String = displayName
-}
-
-// --- NEW: Data class for language selection spinners ---
-data class LanguageOption(val displayName: String, val locale: Locale) {
-    // This override is crucial for the ArrayAdapter to display the name correctly in the spinner.
     override fun toString(): String = displayName
 }
