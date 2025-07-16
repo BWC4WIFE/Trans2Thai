@@ -153,7 +153,7 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
 * **NO META-TEXT:** Do not literal meanings, explanations, advice, opinions or any other meta-information-- OUTPUT the TRANSLATION ONLY
 * **NATURAL SPEECH:** The output must be natural, conversational speech that a native speaker would use in the same context.
 """
-        private const val REQUESTED_AUDIO_MIMETYPE = "audio/mp3"
+        private const val REQUESTED_RESPONSE_MIMETYPE = "text/plain"
         private const val RECORDED_AUDIO_MIMETYPE = "audio/wav"
     }
 
@@ -410,7 +410,7 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
                     Content(parts = listOf(Part(text = "Understood. I am ready.")), role = "model"),
                     Content(parts = userParts)
                 ),
-                generationConfig = GenerationConfig(responseMimeType = REQUESTED_AUDIO_MIMETYPE)
+                generationConfig = GenerationConfig(responseMimeType = REQUESTED_RESPONSE_MIMETYPE)
             )
 
             // THIS IS THE FIX: Using apiKey!! to assert it's not null
