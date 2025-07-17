@@ -22,10 +22,12 @@ class SettingsDialog(
 
     private lateinit var binding: DialogSettingsBinding
     private var apiKeysList: List<ApiKeyInfo> = emptyList()
+    private var apiVersions: List<String> = emptyList()
     private var selectedModel: String = ""
     private var selectedApiKeyInfo: ApiKeyInfo? = null
     private var selectedSourceLang: MainActivity.LanguageOption? = null
     private var selectedTargetLang: MainActivity.LanguageOption? = null
+    private var selectedApiVersion: String = ""
     
     companion object {
         private const val TAG = "SettingsDialog"
@@ -39,6 +41,7 @@ class SettingsDialog(
         window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
 
         loadApiKeysFromResources()
+        loadApiVersionsFromResources()
 
         val currentModel = prefs.getString("selected_model", models.firstOrNull())
         selectedModel = models.firstOrNull { it == currentModel } ?: models.first()
@@ -47,7 +50,8 @@ class SettingsDialog(
         val targetLangTag = prefs.getString("target_language", Locale("th", "TH").toLanguageTag())
         selectedSourceLang = languages.find { it.locale.toLanguageTag() == sourceLangTag }
         selectedTargetLang = languages.find { it.locale.toLanguageTag() == targetLangTag }
-        
+        selectedApiVersion = prefs.getString("api_version", apiVersions.firstOrNull() ?: "") ?: ""
+
         setupViews()
     }
      
@@ -59,6 +63,10 @@ class SettingsDialog(
         }
         val currentApiKeyValue = prefs.getString("api_key", null)
         selectedApiKeyInfo = apiKeysList.firstOrNull { it.value == currentApiKeyValue } ?: apiKeysList.firstOrNull()
+    }
+
+        private fun loadApiVersionsFromResources() {
+        apiVersions = context.resources.getStringArray(R.array.api_versions).toList()
     }
 
     private fun setupViews() {
@@ -89,6 +97,10 @@ class SettingsDialog(
         binding.apiKeySpinner.adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, apiKeysList)
         apiKeysList.indexOf(selectedApiKeyInfo).takeIf { it != -1 }?.let { binding.apiKeySpinner.setSelection(it) }
 
+        // API Version Spinner
+        binding.apiVersionSpinner.adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, apiVersions)
+        apiVersions.indexOf(selectedApiVersion).takeIf { it != -1}?.let { binding.apiVersionSpinner.setSelection(it)}
+
         // ** NEW: Load state for the Thai Prompt Switch **
         val useThaiPrompt = prefs.getBoolean("use_thai_prompt", false)
         binding.thaiPromptSwitch.isChecked = useThaiPrompt
@@ -102,6 +114,9 @@ class SettingsDialog(
                 putString("target_language", languages[binding.targetLanguageSpinner.selectedItemPosition].locale.toLanguageTag())
                 if (apiKeysList.isNotEmpty()) {
                     putString("api_key", apiKeysList[binding.apiKeySpinner.selectedItemPosition].value)
+                }
+                if(apiVersions.isNotEmpty()){
+                    putString("api_version", apiVersions[binding.apiVersionSpinner.selectedItemPosition])
                 }
                 // ** NEW: Save state for the Thai Prompt Switch **
                 putBoolean("use_thai_prompt", binding.thaiPromptSwitch.isChecked)
