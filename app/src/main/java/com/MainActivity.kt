@@ -408,6 +408,12 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
                 updateUI()
                 return@launch
             }
+         // Conditionally create the generationConfig
+            val generationConfig = if (selectedApiVersion == "v1beta") {
+                GenerationConfig(responseMimeType = REQUESTED_RESPONSE_MIMETYPE)
+            } else {
+                null
+            }
 
             val request = GenerateContentRequest(
                 contents = listOf(
@@ -415,7 +421,7 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
                     Content(parts = listOf(Part(text = "Understood. I am ready.")), role = "model"),
                     Content(parts = userParts)
                 ),
-                generationConfig = GenerationConfig(responseMimeType = REQUESTED_RESPONSE_MIMETYPE)
+                generationConfig = generationConfig
             )
 
             val result = geminiApiClient.generateContent(this@MainActivity, apiKey, selectedApiVersion, selectedModel, request)
@@ -423,10 +429,12 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
         }
     }
 
-    private fun handleApiResponse(result: Result<GenerateContentResponse>) {
+private fun handleApiResponse(result: Result<GenerateContentResponse>) {
         result.onSuccess { response ->
             val content = response.candidates?.firstOrNull()?.content ?: run {
-                showError("Received an empty response from the API.")
+                val errorMessage = "Received an empty response from the API."
+                showError(errorMessage) // Show specific error
+                translationAdapter.addOrUpdateTranslation(errorMessage, false) // Show in chat
                 return@onSuccess
             }
 
@@ -441,14 +449,20 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
                 }
             }
         }.onFailure { error ->
-            showError("Translation failed: ${error.message}")
-            translationAdapter.addOrUpdateTranslation("(Translation failed)", false)
+            // Extract the detailed error message
+            val detailedError = "API Error: ${error.message}"
+            Log.e(TAG, detailedError, error) // Log the full stack trace for debugging
+
+            // Display the detailed error on the screen
+            showError(detailedError)
+            translationAdapter.addOrUpdateTranslation(detailedError, false) // Add error to chat log
         }
 
         isProcessing = false
         updateStatus("Ready")
         updateUI()
     }
+
 
     private fun checkPermissions() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
