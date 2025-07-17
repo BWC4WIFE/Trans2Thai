@@ -20,20 +20,23 @@ class GeminiApiClient {
 
     companion object {
         private const val TAG = "GeminiApiClient"
-        private const val API_URL_TEMPLATE = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent"
+        private const val API_URL_TEMPLATE = "https://generativelanguage.googleapis.com/%s/models/%s:generateContent"
     }
 
     /**
      * Sends a request to the Gemini API's generateContent endpoint.
      *
+     * @param context The application context.
      * @param apiKey Your Google AI API key.
-     * @param modelName The name of the model to use (e.g., "gemini-2.5-flash-preview-native-audio-dialog").
+     * @param apiVersion The API version to use (e.g., "v1beta").
+     * @param modelName The name of the model to use.
      * @param requestBody The structured request object.
      * @return A Result wrapper containing the parsed GenerateContentResponse on success or an Exception on failure.
      */
     suspend fun generateContent(
         context: Context,
         apiKey: String,
+        apiVersion: String,
         modelName: String,
         requestBody: GenerateContentRequest
     ): Result<GenerateContentResponse> = withContext(Dispatchers.IO) {
@@ -43,7 +46,7 @@ class GeminiApiClient {
             Log.e(TAG, "Network check failed: No internet connection.")
             return@withContext Result.failure(IOException("No internet connection. Please check your network settings."))
         }
-        val url = String.format(API_URL_TEMPLATE, modelName)
+        val url = String.format(API_URL_TEMPLATE, apiVersion, modelName)
         val jsonBody = gson.toJson(requestBody)
         val request = Request.Builder()
             .url(url)
