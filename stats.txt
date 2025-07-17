@@ -9,3 +9,6 @@ Implement Audio Detection for the App NOT the Sending to know when to send -- di
 Mic Button not auto engaging need to turn on text and back off.  When Text is on we should use the Native Speech to Text Engine -- 
 
 Audio or Text -- 
+
+
+Unsure what Source and Target Language function does.
