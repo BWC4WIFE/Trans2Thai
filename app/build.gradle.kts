@@ -96,3 +96,10 @@ android {
         debugImplementation("androidx.compose.ui:ui-test-manifest")
     }
 }
+android.applicationVariants.all {
+    outputs.all {
+        val outputImpl = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+        outputImpl.outputFileName = "Trans2Thai-${name}.apk"
+    }
+}
+
