@@ -1,16 +1,11 @@
-"error": {
-07-17 12:44:41.972  3542  4042 E GeminiApiClient:     "code": 400,
-07-17 12:44:41.972  3542  4042 E GeminiApiClient:     "message": "Invalid JSON payload received. Unknown name \"response_mime_type\" at 'generation_config': Cannot find field.",
-07-17 12:44:41.972  3542  4042 E GeminiApiClient:     "status": "INVALID_ARGUMENT",
-07-17 12:44:41.972  3542  4042 E GeminiApiClient:     "details": [
-07-17 12:44:41.972  3542  4042 E GeminiApiClient:       {
-07-17 12:44:41.972  3542  4042 E GeminiApiClient:         "@type": "type.googleapis.com/google.rpc.BadRequest",
-07-17 12:44:41.972  3542  4042 E GeminiApiClient:         "fieldViolations": [
-07-17 12:44:41.972  3542  4042 E GeminiApiClient:           {
-07-17 12:44:41.972  3542  4042 E GeminiApiClient:             "field": "generation_config",
-07-17 12:44:41.972  3542  4042 E GeminiApiClient:             "description": "Invalid JSON payload received. Unknown name \"response_mime_type\" at 'generation_config': Cannot find field."
-07-17 12:44:41.972  3542  4042 E GeminiApiClient:           }
-07-17 12:44:41.972  3542  4042 E GeminiApiClient:         ]
-07-17 12:44:41.972  3542  4042 E GeminiApiClient:       }
-07-17 12:44:41.972  3542  4042 E GeminiApiClient:     ]
-07-17 12:44:41.972  3542  4042 E GeminiApiClient:   }
+Flash Native -- has to be a streaming live connection
+
+2.5 Pro and 2.5 Flash -- output Audio -- and we correctly receive Text as well
+
+Need to increase the font size.
+
+Implement Audio Detection for the App NOT the Sending to know when to send -- disable the waiting screen; change colors.
+
+Mic Button not auto engaging need to turn on text and back off.  When Text is on we should use the Native Speech to Text Engine -- 
+
+Audio or Text -- 
