@@ -43,6 +43,7 @@ class MainActivity : AppCompatActivity() {
     private var vadRunnable: Runnable? = null
 
     private var selectedModel: String = ""
+    private var selectedApiVersion: String = "" // Add this
     private var apiKeys: List<ApiKeyInfo> = emptyList()
     private var selectedApiKeyInfo: ApiKeyInfo? = null
     private var sourceLanguage: Locale = Locale.ENGLISH
@@ -203,6 +204,10 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
         val prefs = getSharedPreferences("Trans2ThaiPrefs", MODE_PRIVATE)
         val models = resources.getStringArray(R.array.models).toList()
         selectedModel = prefs.getString("selected_model", models.firstOrNull() ?: "") ?: (models.firstOrNull() ?: "")
+        
+        val apiVersions = resources.getStringArray(R.array.api_versions).toList()
+        selectedApiVersion = prefs.getString("api_version", apiVersions.firstOrNull() ?: "") ?: (apiVersions.firstOrNull() ?: "")
+
         val sourceLangTag = prefs.getString("source_language", Locale.ENGLISH.toLanguageTag())
         val targetLangTag = prefs.getString("target_language", Locale("th", "TH").toLanguageTag())
         sourceLanguage = Locale.forLanguageTag(sourceLangTag ?: "en")
@@ -294,7 +299,7 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
     private fun updateDisplayInfo() {
         val prefs = getSharedPreferences("Trans2ThaiPrefs", MODE_PRIVATE)
         val currentApiKey = apiKeys.firstOrNull { it.value == prefs.getString("api_key", null) } ?: apiKeys.firstOrNull()
-        binding.configDisplay.text = "Model: $selectedModel | Key: ${currentApiKey?.displayName ?: "N/A"}"
+        binding.configDisplay.text = "Model: $selectedModel | Key: ${currentApiKey?.displayName ?: "N/A"} | API Version: $selectedApiVersion"
     }
 
     private fun handleMasterButton() {
@@ -413,8 +418,7 @@ You will encounter conversations involving sensitive or explicit topics. Adhere 
                 generationConfig = GenerationConfig(responseMimeType = REQUESTED_RESPONSE_MIMETYPE)
             )
 
-            // THIS IS THE FIX: Using apiKey!! to assert it's not null
-            val result = geminiApiClient.generateContent(this@MainActivity, apiKey, selectedModel, request)
+            val result = geminiApiClient.generateContent(this@MainActivity, apiKey, selectedApiVersion, selectedModel, request)
             handleApiResponse(result)
         }
     }
